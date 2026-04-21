@@ -1,6 +1,6 @@
 {
   "name": "next-easytour",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Interactive tutorial overlay for React and Next.js. Step-based guide with animated SVG arrows, highlighted target elements, circle annotations, and an optional visual editor for authoring tours in the running UI.",
   "keywords": [
     "tutorial",
