@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://unpkg.com/next-easytour/tutorial.schema.json",
+  "title": "next-easytour tutorial",
+  "description": "Schema for a next-easytour step list. Validates arrays of TutorialStep objects as defined in src/types.ts.",
+  "type": "object",
+  "properties": {
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/TutorialStep" }
+    }
+  },
+  "definitions": {
+    "TutorialStep": {
+      "type": "object",
+      "required": ["title", "body"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Heading displayed in the card."
+        },
+        "body": {
+          "type": "string",
+          "description": "Body copy displayed below the heading."
+        },
+        "target": {
+          "type": "string",
+          "description": "The data-tutorial-id value of the element to highlight. Bare id, not a CSS selector."
+        },
+        "targetLabel": {
+          "type": "string",
+          "description": "Small caption rendered at the arrow tip."
+        },
+        "arrowTo": { "$ref": "#/definitions/ArrowPoint" },
+        "arrowStyle": { "$ref": "#/definitions/ArrowStyle" },
+        "circles": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TutorialCircle" }
+        },
+        "action": {
+          "type": "string",
+          "description": "Free-form string surfaced through onAction when the step activates."
+        }
+      },
+      "additionalProperties": true
+    },
+    "ArrowPoint": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number", "description": "Horizontal position as a percentage of the target rect (may fall outside 0–100)." },
+        "y": { "type": "number", "description": "Vertical position as a percentage of the target rect (may fall outside 0–100)." }
+      },
+      "additionalProperties": false
+    },
+    "ArrowStyle": {
+      "type": "object",
+      "properties": {
+        "bend": { "type": "number", "minimum": 5, "maximum": 80, "default": 30 },
+        "flip": { "type": "boolean", "default": false },
+        "strokeWidth": { "type": "number", "default": 1.5 },
+        "dashed": { "type": "boolean", "default": false },
+        "headSize": { "type": "number", "default": 8 },
+        "loopEnd": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "TutorialCircle": {
+      "type": "object",
+      "required": ["x", "y", "r"],
+      "properties": {
+        "x": { "type": "number", "description": "Centre x, percentage of target width." },
+        "y": { "type": "number", "description": "Centre y, percentage of target height." },
+        "r": { "type": "number", "description": "Horizontal radius, percentage of target width." },
+        "ry": { "type": "number", "description": "Vertical radius, percentage of target height. Defaults to r." },
+        "rot": { "type": "number", "description": "Rotation in degrees." },
+        "label": { "type": "string", "description": "Optional label rendered below the ellipse." }
+      },
+      "additionalProperties": false
+    }
+  }
+}

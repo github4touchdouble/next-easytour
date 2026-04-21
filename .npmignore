@@ -1,9 +1,16 @@
-examples
-node_modules
-.git
-.github
-.vscode
-.idea
-tsconfig.tsbuildinfo
-*.log
+# Development
+node_modules/
+.github/
+examples/
+.vscode/
+.idea/
+
+# Source maps and tests (ship .d.ts but not .ts source if you prefer)
+*.tsbuildinfo
+coverage/
+.nyc_output/
+
+# Misc
 .DS_Store
+*.log
+*.tgz

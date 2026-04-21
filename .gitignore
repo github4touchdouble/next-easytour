@@ -1,11 +1,39 @@
+# Dependencies
 node_modules/
+.pnp/
+.pnp.js
+
+# Build output
 dist/
-*.log
-.DS_Store
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editors
 .vscode/
 .idea/
-tsconfig.tsbuildinfo
-.env
-.env.local
-.next/
-export.py
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.tgz
+.cache/

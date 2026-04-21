@@ -1,7 +1,7 @@
 {
   "name": "next-easytour",
   "version": "0.1.0",
-  "description": "Lightweight interactive tutorial overlay for React and Next.js apps. Step-based guide with animated SVG arrows, highlighted target elements, circle annotations, and an optional visual editor for authoring tours directly in the running UI.",
+  "description": "Interactive tutorial overlay for React and Next.js. Step-based guide with animated SVG arrows, highlighted target elements, circle annotations, and an optional visual editor for authoring tours in the running UI.",
   "keywords": [
     "tutorial",
     "onboarding",
@@ -12,19 +12,22 @@
     "nextjs",
     "react",
     "svg-arrow",
-    "interactive"
+    "interactive",
+    "product-tour"
   ],
   "license": "MIT",
-  "author": "",
+  "author": "Jan P Hummel",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/github4touchdouble/next-easytour.git"
   },
-  "homepage": "",
+  "bugs": {
+    "url": "https://github.com/github4touchdouble/next-easytour/issues"
+  },
+  "homepage": "https://github.com/github4touchdouble/next-easytour#readme",
   "type": "module",
   "sideEffects": [
-    "./dist/styles.css",
-    "./src/styles.css"
+    "./dist/styles.css"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -35,14 +38,23 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./tutorial.schema.json": "./tutorial.schema.json",
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "src",
+    "tutorial.schema.json",
     "README.md",
+    "LLMS.md",
+    "AGENTS.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --out-dir dist --clean && cp src/styles.css dist/styles.css",
     "dev": "tsup src/index.ts --format esm --dts --out-dir dist --watch",
@@ -53,6 +65,11 @@
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0",
     "lucide-react": ">=0.300.0"
+  },
+  "peerDependenciesMeta": {
+    "lucide-react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
