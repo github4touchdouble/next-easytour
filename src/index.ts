@@ -40,7 +40,9 @@
  *
  * - `TutorialOverlay` — the component.
  * - Types: `TutorialOverlayProps`, `TutorialStep`, `TutorialCircle`,
- *   `ArrowStyle`, `ArrowPoint`, `SaveHandler`, `ImageLike`.
+ *   `ArrowStyle`, `ArrowPoint`, `SaveHandler`, `ImageLike`, `CanEdit`.
+ * - Hooks: `useLocalStorageCanEdit` (ready-made `canEdit` source backed
+ *   by a `localStorage` key).
  * - Geometry helpers: `DEFAULT_STYLE`, `autoTargetPoint`, `resolvePoint`,
  *   `cardSourcePx`, `pixelToRelative`, `buildPath`. Exposed for custom
  *   arrow rendering and unit tests; a typical consumer does not need them.
@@ -61,7 +63,9 @@ export type {
   TutorialOverlayProps,
   SaveHandler,
   ImageLike,
+  CanEdit,
 } from "./types";
+export { useLocalStorageCanEdit } from "./useDebugMode";
 export {
   DEFAULT_STYLE,
   autoTargetPoint,

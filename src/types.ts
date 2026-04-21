@@ -1,3 +1,5 @@
+import type * as React from "react";
+
 /**
  * Relative point on the target element, expressed in percentages.
  * (0,0)   = top-left corner of the target.
@@ -57,7 +59,6 @@ export interface TutorialCircle {
 /**
  * One step in the tour. Unrecognised fields are preserved verbatim via the
  * index signature, so host applications may attach arbitrary metadata
- * (e.g. `highlight`, `tumors`, `colorMode` in the original MuTopia use)
  * and consume it from their own `onAction` or step-change callbacks.
  */
 export interface TutorialStep {
@@ -90,10 +91,9 @@ export interface TutorialStep {
 
 /**
  * Signature of a function that persists the edited step list. The library
- * calls it when the user clicks **Save** in debug mode. The host decides
- * where the data goes — POST it to a backend, write to localStorage, copy
- * to clipboard, whatever. Throwing or rejecting makes the overlay show an
- * error state and fall back to copying the JSON to the clipboard.
+ * calls it when the user clicks **Save** in the authoring editor. The host
+ * decides where the data goes. Throwing or rejecting makes the overlay show
+ * an error state and fall back to copying the JSON to the clipboard.
  */
 export type SaveHandler = (steps: TutorialStep[]) => void | Promise<void>;
 
@@ -109,6 +109,33 @@ export type ImageLike = React.ComponentType<{
   height: number;
   style?: React.CSSProperties;
 }>;
+
+/**
+ * Resolves whether the authoring editor should be accessible.
+ *
+ * Accepted shapes:
+ *
+ * - `true` / `false` — explicit on/off, overrides everything else.
+ * - `"auto"` (default when prop is omitted) — on in development
+ *   (`process.env.NODE_ENV === "development"`), off in production.
+ * - `() => boolean` — a plain predicate called on every render. Use for
+ *   pure, synchronous checks (feature flags held in React state you
+ *   already own, URL query parameters, etc.).
+ * - `{ useCanEdit: () => boolean }` — a user-supplied React hook. This is
+ *   the correct shape when the check itself calls other hooks, e.g.
+ *   reading from an auth context, `useSWR`, or `localStorage` via
+ *   `useSyncExternalStore`. The wrapper object makes the intent explicit
+ *   so the library can call it at a stable top-level site, respecting
+ *   the Rules of Hooks.
+ *
+ * The library ships `useLocalStorageCanEdit` as a ready-made hook for the
+ * common “toggle via `localStorage` key” case.
+ */
+export type CanEdit =
+  | boolean
+  | "auto"
+  | (() => boolean)
+  | { useCanEdit: () => boolean };
 
 /**
  * Props for the `<TutorialOverlay>` component.
@@ -144,14 +171,25 @@ export interface TutorialOverlayProps {
    */
   onAction?: (action: string, stepIndex: number) => void;
   /**
+   * Controls whether the authoring editor is accessible. See the
+   * {@link CanEdit} documentation for all accepted shapes. Defaults to
+   * `"auto"`: on in development, off in production.
+   */
+  canEdit?: CanEdit;
+  /**
+   * @deprecated since 0.2.0 — use `canEdit` instead. When set, this prop
+   * takes precedence over `canEdit` to preserve existing behaviour, but
+   * support will be removed in 0.3.0. A console warning is logged in
+   * development when `debug` is supplied.
+   *
    * Enable the visual authoring editor. When true, users can drag arrow
    * tips, adjust per-step arrow style via sliders, reposition and resize
    * annotation circles, and save the resulting step list via `onSave`.
    */
   debug?: boolean;
   /**
-   * Invoked when the user clicks Save in debug mode. Receives the full
-   * updated step list as a plain-object array. If this prop is omitted,
+   * Invoked when the user clicks Save in the authoring editor. Receives the
+   * full updated step list as a plain-object array. If this prop is omitted,
    * Save falls back to copying the JSON to the clipboard.
    */
   onSave?: SaveHandler;

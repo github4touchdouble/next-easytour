@@ -18,6 +18,7 @@ import {
   pixelToRelative,
   buildPath,
 } from "./geometry";
+import { useDebugMode } from "./useDebugMode";
 
 /** Fallback image component — plain HTML `<img>`. Users can inject `next/image`
  *  (or any other framework-specific image component) via the `ImageComponent`
@@ -42,11 +43,14 @@ const DefaultImage: ImageLike = ({ src, alt, width, height, style }) => (
  *
  *     { target: "save-button", title: "Save your work", body: "..." }
  *
- * In `debug` mode the overlay becomes a visual authoring editor: drag the
- * arrow tip, tweak bend/stroke/head via sliders, reposition and resize
+ * In authoring mode the overlay becomes a visual editor: drag the arrow
+ * tip, tweak bend/stroke/head via sliders, reposition and resize
  * annotation circles, and hit Save to persist the updated step list via
  * the supplied `onSave` callback. If `onSave` is omitted the library
  * falls back to copying the JSON to the clipboard.
+ *
+ * Authoring-mode access is controlled by the `canEdit` prop — see
+ * {@link CanEdit} in `types.ts` for the accepted shapes.
  */
 export function TutorialOverlay({
   steps,
@@ -60,10 +64,32 @@ export function TutorialOverlay({
   headerLabel = "Guide",
   ImageComponent = DefaultImage,
   onAction,
-  debug = false,
+  canEdit,
+  debug: legacyDebug,
   onSave,
   onSaved,
 }: TutorialOverlayProps) {
+  // Resolve the authoring-mode flag. `debug` (if set) wins for back-compat;
+  // otherwise `canEdit` governs. Downstream code keeps using `debug` as a
+  // plain boolean, so nothing else in this file changes.
+  const debug = useDebugMode(canEdit, legacyDebug);
+
+  // One-time dev warning if the deprecated prop is supplied.
+  const warnedRef = useRef(false);
+  if (
+    typeof process !== "undefined" &&
+    process.env?.NODE_ENV !== "production" &&
+    legacyDebug !== undefined &&
+    !warnedRef.current
+  ) {
+    warnedRef.current = true;
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[next-easytour] The `debug` prop is deprecated; use `canEdit` " +
+        "instead. Support for `debug` will be removed in 0.3.0.",
+    );
+  }
+
   const cardRef = useRef<HTMLDivElement>(null);
   const uidRef = useRef(`tut-${Math.random().toString(36).slice(2, 8)}`);
   const uid = uidRef.current;

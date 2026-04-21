@@ -5,7 +5,7 @@ This file is identical to `AGENTS.md`. If you are a human, read `README.md` inst
 
 ```yaml
 name: next-easytour
-version: 0.1.0
+version: 0.2.0
 kind: react-component-library
 language: typescript
 module_type: esm
@@ -116,6 +116,8 @@ Everything else is optional. Default values are noted in `src/types.ts` JSDoc an
 | Assuming the arrow targets a CSS position. | `arrowTo` is a percentage of the *target element's* bounding box, re-resolved on every render. |
 | Mutating a step object in place. | Treat `steps` as immutable; the editor returns a new array via `onSave`. |
 | Rendering the overlay inside an element with `overflow: hidden`. | The card is `position: fixed`; SVG arrows use viewport coordinates. Mount it at the page root. |
+| Passing a bare function as `canEdit={useMyHook}` and expecting hook semantics. | Wrap it: `canEdit={{ useCanEdit: useMyHook }}`. Plain functions are called as predicates; only the wrapper shape is called as a hook. |
+| Using `debug={true}` in 0.2.0+. | Still works but deprecated. Switch to `canEdit={true}`; `debug` is removed in 0.3.0. |
 
 ## Exports
 
@@ -132,7 +134,11 @@ import type {
   ArrowPoint,
   SaveHandler,
   ImageLike,
+  CanEdit,
 } from "next-easytour";
+
+// Hooks
+import { useLocalStorageCanEdit } from "next-easytour";
 
 // Geometry helpers (pure functions; exported for custom arrow rendering or tests)
 import {
@@ -159,9 +165,30 @@ A JSON Schema for `TutorialStep[]` is published at `tutorial.schema.json` in the
 }
 ```
 
-## Authoring mode (debug editor)
+## Authoring mode (`canEdit`)
 
-Set `debug={true}` → users can drag the arrow tip, adjust arrow style, and move circle handles. Clicking Save calls `onSave(steps)`. If `onSave` is omitted, the JSON is copied to the clipboard. Gate `debug` behind `process.env.NODE_ENV === "development"`.
+The authoring editor is controlled by the `canEdit` prop. Type:
+
+```ts
+type CanEdit =
+  | boolean                             // explicit on/off
+  | "auto"                              // on in dev, off in prod — default when prop is omitted
+  | (() => boolean)                     // sync predicate, called on every render
+  | { useCanEdit: () => boolean };      // user-supplied React hook
+```
+
+Canonical patterns:
+
+- **Dev-only (default):** omit the prop.
+- **Always on:** `canEdit={true}`.
+- **localStorage toggle:** `canEdit={{ useCanEdit: () => useLocalStorageCanEdit() }}`.
+- **Role gate:** `canEdit={{ useCanEdit: () => useAuth().role === "admin" }}`.
+
+`useLocalStorageCanEdit(key?)` is exported from the package. Default key is `"next-easytour:debug"`. Set the key's value to `"true"` in the browser to enable the editor; the hook is SSR-safe and re-renders when the key changes in another tab.
+
+Clicking Save invokes `onSave(steps)`; on failure the JSON is copied to the clipboard. Omitting `onSave` also falls back to clipboard.
+
+The old `debug` prop is **deprecated** as of 0.2.0. It still works and takes precedence over `canEdit` to preserve behaviour, but logs a dev warning and will be removed in 0.3.0.
 
 ## Theming
 

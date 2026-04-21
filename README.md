@@ -95,7 +95,8 @@ The id in `data-tutorial-id` is a bare string, **not** a CSS selector. Arrow pos
 | `headerLabel` | `string` | `"Guide"` | Text beside the logo. |
 | `ImageComponent` | `ImageLike` | `<img>` | Swap in `next/image` or similar. |
 | `onAction` | `(action, i) => void` | — | Fires when a step has a non-empty `action`. |
-| `debug` | `boolean` | `false` | Enables the authoring editor. |
+| `canEdit` | `CanEdit` | `"auto"` | Who can open the authoring editor. See [Authoring mode](#authoring-mode). |
+| `debug` | `boolean` | — | **Deprecated** since 0.2.0; alias for `canEdit` kept for 0.1.x back-compat. Removed in 0.3.0. |
 | `onSave` | `SaveHandler` | — | Save callback; falls back to clipboard. |
 | `onSaved` | `() => void` | — | Fires after a successful save. |
 
@@ -147,15 +148,80 @@ interface TutorialCircle {
 | Passing `step={null}`. | `step` is `number`. Gate the overlay: `{step !== null && <TutorialOverlay ... />}`. |
 | Using `next/image` without `ImageComponent`. | `ImageComponent={Image as never}`. |
 | Mounting the overlay inside `overflow: hidden`. | Mount it at the page root; it is `position: fixed`. |
+| Passing a bare hook function to `canEdit`. | Wrap it: `canEdit={{ useCanEdit: useMyHook }}`. Plain functions are called as predicates, not hooks. |
 
 ## Authoring mode
 
-`debug={true}` reveals the editor: drag the blue tip to reposition the arrow, adjust bend / weight / head, toggle flip / dash / loop, and manipulate circle handles. **Save** invokes `onSave(steps)`; on failure the JSON is copied to the clipboard.
+The library ships a visual editor for authoring tours in the running UI — drag the arrow tip, adjust stroke / bend / head, resize circle annotations. **Save** invokes `onSave(steps)`; on failure the JSON is copied to the clipboard.
+
+Access is controlled by the `canEdit` prop, which accepts four shapes:
+
+```ts
+type CanEdit =
+  | boolean                             // explicit on/off
+  | "auto"                              // on in dev, off in prod (default)
+  | (() => boolean)                     // sync predicate
+  | { useCanEdit: () => boolean };      // user-supplied React hook
+```
+
+### Auto (default)
+
+Omit the prop. The editor appears when `process.env.NODE_ENV === "development"` and disappears in production builds:
+
+```tsx
+<TutorialOverlay {...rest} />   // editor visible in dev only
+```
+
+### Explicit boolean
+
+```tsx
+<TutorialOverlay {...rest} canEdit={true}  />   // always visible
+<TutorialOverlay {...rest} canEdit={false} />   // always hidden
+```
+
+### `localStorage` toggle
+
+The built-in `useLocalStorageCanEdit` hook reads a boolean from `localStorage`. Flip it from the browser console without redeploying:
+
+```tsx
+import { TutorialOverlay, useLocalStorageCanEdit } from "next-easytour";
+
+<TutorialOverlay
+  {...rest}
+  canEdit={{ useCanEdit: () => useLocalStorageCanEdit() }}
+/>;
+```
+
+```js
+// In the browser console:
+localStorage.setItem("next-easytour:debug", "true");
+// Reload — the editor appears.
+```
+
+Pass a different key to isolate multiple tours: `useLocalStorageCanEdit("tour:onboarding:debug")`.
+
+### Role-based gate
+
+When the decision depends on async or context-driven state, pass a hook:
+
+```tsx
+import { useAuth } from "./auth";
+
+<TutorialOverlay
+  {...rest}
+  canEdit={{ useCanEdit: () => useAuth().role === "admin" }}
+/>;
+```
+
+The embedded function **must** obey the Rules of Hooks — it is called from a stable top-level site inside the overlay. Treat it exactly like any other custom hook.
+
+### Save callback
+
+Regardless of how access is granted, Save still goes through `onSave`:
 
 ```tsx
 <TutorialOverlay
   {...rest}
-  debug={process.env.NODE_ENV === "development"}
   onSave={async (steps) => {
     const res = await fetch("/api/tutorial", {
       method: "POST",
