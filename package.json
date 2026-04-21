@@ -1,7 +1,7 @@
 {
   "name": "next-easytour",
-  "version": "0.2.3",
-  "description": "Interactive tutorial overlay for React and Next.js. Step-based guide with animated SVG arrows, highlighted target elements, circle annotations, and an optional visual editor for authoring tours in the running UI.",
+  "version": "0.3.0-alpha.0",
+  "description": "Headless, composable tutorial overlay for React and Next.js. Compose Tutorial + Card + Arrow + Spotlight + Circles primitives with full branding control, drag-to-author editor, and typed coordinate systems.",
   "keywords": [
     "tutorial",
     "onboarding",
@@ -13,7 +13,8 @@
     "react",
     "svg-arrow",
     "interactive",
-    "product-tour"
+    "product-tour",
+    "headless"
   ],
   "license": "MIT",
   "author": "Jan P Hummel",
@@ -47,9 +48,10 @@
     "src",
     "tutorial.schema.json",
     "README.md",
-    "LLMS.md",
     "AGENTS.md",
+    "LLMS.md",
     "CHANGELOG.md",
+    "MIGRATING.md",
     "LICENSE"
   ],
   "engines": {
@@ -59,25 +61,23 @@
     "build": "tsup src/index.ts --format esm --dts --out-dir dist --clean && cp src/styles.css dist/styles.css",
     "dev": "tsup src/index.ts --format esm --dts --out-dir dist --watch",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run typecheck && npm run build"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
-    "react-dom": ">=18.0.0",
-    "lucide-react": ">=0.300.0"
-  },
-  "peerDependenciesMeta": {
-    "lucide-react": {
-      "optional": true
-    }
+    "react-dom": ">=18.0.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.0.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "jsdom": "^25.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "lucide-react": "^0.400.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
   }
 }

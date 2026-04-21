@@ -1,15 +1,20 @@
-// Minimal ambient declaration for `process.env.NODE_ENV`.
-//
-// This library runs in the browser but reads `process.env.NODE_ENV` so
-// bundlers (webpack, Vite, tsup, esbuild) can dead-code-eliminate the
-// dev-only branches at build time — every modern bundler replaces the
-// expression with a string literal.
-//
-// We declare only what we actually use, instead of pulling in `@types/node`
-// which would leak server-side globals (Buffer, setImmediate, __dirname, …)
-// into consumers' autocomplete.
-declare const process: {
-  env: {
-    NODE_ENV?: "development" | "production" | "test" | string;
-  };
-};
+/**
+ * Minimal declaration of the `process.env.NODE_ENV` pattern we use in
+ * a handful of dev-only `console.warn` branches. We don't depend on
+ * `@types/node` because this library targets the browser — pulling
+ * in all of Node's typings just to read one field is overkill.
+ *
+ * Bundlers (webpack/Next.js/tsup with `--env`) replace `process.env.
+ * NODE_ENV` with a literal string at build time, so the `typeof
+ * process !== "undefined"` guard is a belt-and-braces check for
+ * environments where no bundler substitution happened. In those
+ * cases `process` genuinely is undefined (pure browser, no bundler)
+ * and the guard short-circuits before dereferencing.
+ */
+declare const process:
+  | {
+      env?: {
+        NODE_ENV?: string;
+      };
+    }
+  | undefined;

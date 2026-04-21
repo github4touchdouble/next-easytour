@@ -1,24 +1,85 @@
+/**
+ * @module types
+ *
+ * Public type surface of next-easytour 0.3.0.
+ *
+ * Every type an integrator touches is exported from the package root
+ * (`import { … } from "next-easytour"`). Nothing else in `src/` is part
+ * of the public API.
+ *
+ * Design notes
+ * ─────────────────────────────────────────────────────────────────────
+ * 1. **Coordinate systems are nominal.** `TargetPoint` and `ViewportAnchor`
+ *    share an `(x, y)` shape but carry a `space` discriminator so the
+ *    type checker catches accidental mixing. A target-relative point
+ *    (`50, 50` = centre of the target's bounding rect) is meaningless
+ *    if interpreted as a viewport fraction and vice versa.
+ *
+ * 2. **Steps are identified by string, not index.** `Step.id` is
+ *    required. Navigation, lifecycle, and storage all reference the id
+ *    so steps can be reordered, inserted, or deleted without breaking
+ *    deep-links, analytics, or saved authoring positions.
+ *
+ * 3. **Host metadata goes under `step.meta`.** 0.2.x used an index
+ *    signature (`[key: string]: unknown`) on `TutorialStep` which killed
+ *    typo detection for library-known fields. Hosts now declare their
+ *    own meta shape and get full type-safety within it; the library's
+ *    own fields remain closed.
+ *
+ * 4. **No `onAction(string)`.** Replaced by four lifecycle callbacks
+ *    (`onOpen`, `onClose`, `onStepEnter`, `onStepLeave`) that receive
+ *    the step object in full. Hosts dispatch on whatever field of
+ *    `step.meta` they like, with their own typing.
+ */
+
 import type * as React from "react";
 
+// ────────────────────────────────────────────────────────────────────────
+// Coordinate systems
+// ────────────────────────────────────────────────────────────────────────
+
 /**
- * Relative point on the target element, expressed in percentages.
- * (0,0)   = top-left corner of the target.
- * (50,50) = dead centre.
- * (100,100) = bottom-right corner.
+ * A point expressed as a percentage of a target element's bounding rect.
  *
- * Values may fall outside 0–100 to place an arrow tip or circle beyond
- * the target's bounding box (useful for pointing at overflowed content).
- * Percentages survive scroll, resize, and different viewport sizes because
- * they are re-resolved on every tick against the element's current rect.
+ * - `(0, 0)`   — top-left corner of the target.
+ * - `(50, 50)` — centre of the target.
+ * - `(100, 100)` — bottom-right corner.
+ *
+ * Values may fall outside 0–100 to place an arrow tip or annotation
+ * beyond the target's box. Percentages are re-resolved against the
+ * target's current rect on every tick, so points stay put through
+ * scrolling, resizing, and different viewport sizes.
  */
-export interface ArrowPoint {
+export interface TargetPoint {
+  space: "target";
   x: number;
   y: number;
 }
 
 /**
- * Visual styling for the Bézier arrow connecting the tutorial card to its
- * target point. Every field is optional; defaults are applied internally.
+ * A point expressed as a percentage of the viewport.
+ *
+ * - `(0, 0)`   — top-left corner of the viewport.
+ * - `(50, 100)` — bottom-centre.
+ * - `(100, 50)` — right-centre.
+ *
+ * Used for card placement. Because values are viewport fractions, the
+ * card lands at the same *relative* spot across phones, laptops, and
+ * ultrawides without any absolute pixel values.
+ */
+export interface ViewportAnchor {
+  space: "viewport";
+  x: number;
+  y: number;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Arrow + annotations
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Visual styling for a Bézier arrow. Every field is optional; defaults
+ * are applied by the `<Arrow>` component.
  */
 export interface ArrowStyle {
   /** Curvature magnitude (5–80). Larger = more pronounced arc. Default 30. */
@@ -31,24 +92,35 @@ export interface ArrowStyle {
   dashed?: boolean;
   /** Size of the arrowhead marker. Default 8. */
   headSize?: number;
-  /** Replace the pointed arrowhead with a small looped eye/circle. Default false. */
+  /** Replace the pointed arrowhead with a looped eye/circle. Default false. */
   loopEnd?: boolean;
 }
 
+/** An arrow pointing from the card to a target point. */
+export interface Arrow {
+  /** Tip of the arrow, relative to the target. */
+  to: TargetPoint;
+  /** Optional caption rendered at the arrow tip. */
+  label?: string;
+  /** Style overrides. */
+  style?: ArrowStyle;
+}
+
 /**
- * An annotated ellipse drawn around a region of the target element, with an
- * optional faint line connecting the tutorial card to the shape. Useful for
- * circling a cluster of points, a button, or a feature within the target
- * without requiring its own data-tutorial-id attribute.
+ * An annotated ellipse drawn over a target. Useful for circling a
+ * cluster of points, a sub-region within a widget, or a feature that
+ * doesn't warrant its own target registration.
+ *
+ * All geometric values are percentages of the target's bounding rect.
  */
-export interface TutorialCircle {
+export interface Circle {
   /** Centre x, percentage of target width. */
   x: number;
   /** Centre y, percentage of target height. */
   y: number;
   /** Horizontal radius, percentage of target width. */
   r: number;
-  /** Vertical radius, percentage of target height. Defaults to `r` (circle). */
+  /** Vertical radius, percentage of target height. Defaults to `r`. */
   ry?: number;
   /** Rotation in degrees. */
   rot?: number;
@@ -57,93 +129,222 @@ export interface TutorialCircle {
 }
 
 /**
- * One step in the tour. Unrecognised fields are preserved verbatim via the
- * index signature, so host applications may attach arbitrary metadata
- * and consume it from their own `onAction` or step-change callbacks.
+ * Per-step visual annotations drawn on top of the target(s). Every
+ * field is optional; include only what each step needs.
  */
-export interface TutorialStep {
-  /** Heading displayed in the card. */
-  title: string;
-  /** Body copy displayed below the heading. */
-  body: string;
-  /**
-   * The `data-tutorial-id` of the element this step highlights and points
-   * to. Omit for a card-only step with no arrow or highlight.
-   */
-  target?: string;
-  /** Small caption rendered at the arrow tip. */
-  targetLabel?: string;
-  /** Arrow tip position, relative to the target element. Defaults to centre. */
-  arrowTo?: ArrowPoint;
-  /** Per-step overrides of the default arrow style. */
-  arrowStyle?: ArrowStyle;
-  /** Zero or more annotated ellipses to draw on top of the target. */
-  circles?: TutorialCircle[];
-  /**
-   * Where the tutorial card sits on screen for this step. Expressed as
-   * viewport percentages (0–100) of both axes, pointing at the card's
-   * top-left corner after any margin. Omit for the default placement
-   * (bottom-centre, 1.5 rem above the viewport bottom).
-   *
-   * Because the anchor is a *viewport fraction*, the card lands in the
-   * same relative spot on a phone, a laptop, or an ultrawide — no
-   * absolute pixels are hard-coded.
-   *
-   * When the authoring editor is active the card grows a drag handle
-   * in its header. Dragging writes to this field on Save.
-   */
-  cardAnchor?: { x: number; y: number };
-  /**
-   * Free-form string surfaced through `onAction` when this step activates,
-   * so the host can drive custom effects (scrolling, filtering, triggering
-   * animations). The library does not interpret the value itself.
-   */
-  action?: string;
-  /** Arbitrary metadata preserved across serialisation round-trips. */
-  [key: string]: unknown;
+export interface Annotations {
+  /** One arrow from the card to a target point. */
+  arrow?: Arrow;
+  /** Zero or more annotated ellipses. */
+  circles?: Circle[];
+  /** Dim everything outside the target(s). Default false. */
+  spotlight?: boolean;
 }
 
-/**
- * Signature of a function that persists the edited step list. The library
- * calls it when the user clicks **Save** in the authoring editor. The host
- * decides where the data goes. Throwing or rejecting makes the overlay show
- * an error state and fall back to copying the JSON to the clipboard.
- */
-export type SaveHandler = (steps: TutorialStep[]) => void | Promise<void>;
+// ────────────────────────────────────────────────────────────────────────
+// Step
+// ────────────────────────────────────────────────────────────────────────
 
 /**
- * Minimal `<img>` replacement that can accept either a plain HTML element
- * or a framework-specific component such as `next/image`. The library
- * passes width, height, src, alt and style, and nothing else.
+ * One step in a tutorial.
+ *
+ * `Meta` is a generic for host-owned metadata. Tours that only use the
+ * library's own fields can leave it as the default `never`; tours that
+ * carry their own data (action tags, filter state, i18n keys, …) should
+ * supply a concrete shape so `step.meta` is fully type-checked.
+ *
+ * @example Host-typed meta
+ * ```ts
+ * interface MyMeta {
+ *   action?: "scroll-to-top" | "open-modal" | "flash";
+ *   highlight?: string;
+ * }
+ * const steps: Step<MyMeta>[] = [
+ *   { id: "welcome", title: "Hi", body: "…" },
+ *   { id: "save", title: "Save", body: "…", meta: { action: "flash" } },
+ * ];
+ * ```
  */
-export type ImageLike = React.ComponentType<{
-  src: string;
-  alt: string;
-  width: number;
-  height: number;
-  style?: React.CSSProperties;
-}>;
+export interface Step<Meta = never> {
+  /**
+   * Stable identifier. Required. Used for navigation
+   * (`onStepChange("save")`), deep-linking, lifecycle callbacks, and
+   * the authoring editor's per-step overrides. Must be unique within
+   * a step list.
+   */
+  id: string;
+
+  /** Heading displayed by the default `<Card>`. */
+  title?: string;
+
+  /** Body copy displayed by the default `<Card>`. */
+  body?: string;
+
+  /**
+   * IDs of the target elements this step highlights or points at.
+   * Register targets with `useTutorialTarget(id)`. Multiple targets
+   * are supported — useful for spotlighting a group of elements
+   * simultaneously.
+   */
+  targets?: string[];
+
+  /**
+   * Visual annotations drawn for this step. The arrow points at the
+   * first target by default; specify a different target id via the
+   * arrow's own field if needed (see `Arrow.to` extensions in future
+   * releases).
+   */
+  annotations?: Annotations;
+
+  /**
+   * Where the tutorial card sits on screen for this step. Omit for
+   * the default placement (bottom-centre, 1.5rem above the viewport
+   * bottom). Authored by dragging the card in the editor.
+   */
+  cardAnchor?: ViewportAnchor;
+
+  /**
+   * Host-owned metadata preserved across serialisation round-trips.
+   * Shape is declared by the consumer via the `Meta` generic.
+   */
+  meta?: Meta;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Runtime status exposed via useTutorial()
+// ────────────────────────────────────────────────────────────────────────
 
 /**
- * Resolves whether the authoring editor should be accessible.
+ * Coarse status of the tutorial state machine, surfaced via
+ * `useTutorial()` so hosts can render conditional UI (e.g. a
+ * "Restart tour" button only when `status === "closed"`).
+ */
+export type TutorialStatus =
+  /** No active step. The tour is idle. */
+  | "closed"
+  /** An active step is displayed and interactive. */
+  | "running"
+  /** Brief fade window between two steps (~80 ms). */
+  | "transitioning"
+  /** Active step, but `canAdvance` returned `false`. */
+  | "blocked";
+
+// ────────────────────────────────────────────────────────────────────────
+// Top-level component props
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Props for `<Tutorial>`. The component is a headless provider — it
+ * renders no DOM of its own. UI comes from children (`<Card>`,
+ * `<Arrow>`, `<Spotlight>`, etc.) that read state via context.
+ */
+export interface TutorialProps<Meta = never> {
+  /** Ordered list of steps. Every `Step.id` must be unique. */
+  steps: Step<Meta>[];
+
+  /**
+   * Active step id, or `null` when the tour is closed. Controlled —
+   * the host owns this state and responds to `onStepChange`.
+   */
+  stepId: string | null;
+
+  /** Called when the user (or the library) navigates to a different step. */
+  onStepChange: (id: string | null) => void;
+
+  // ── Lifecycle ──────────────────────────────────────────────────────
+
+  /** Called once when the tour transitions from `closed` to `running`. */
+  onOpen?: () => void;
+
+  /** Called once when the tour transitions from `running` to `closed`. */
+  onClose?: () => void;
+
+  /**
+   * Called whenever a new step becomes active (including on `onOpen`).
+   * Ideal place to set up step-specific UI state (highlight a row,
+   * open a panel, scroll a list, …).
+   */
+  onStepEnter?: (step: Step<Meta>, index: number) => void;
+
+  /**
+   * Called whenever a step is about to be replaced — either by
+   * navigating to another step, or by closing the tour. Mirror of
+   * `onStepEnter`.
+   */
+  onStepLeave?: (step: Step<Meta>, index: number) => void;
+
+  // ── Gating ─────────────────────────────────────────────────────────
+
+  /**
+   * Predicate run on every render. When it returns `false`, the
+   * tutorial enters `"blocked"` status and the default `<Card>`
+   * disables its Next button. Typical use: require the user to fill
+   * in a form or click a specific element before the tour advances.
+   */
+  canAdvance?: (step: Step<Meta>, index: number) => boolean;
+
+  // ── Children ───────────────────────────────────────────────────────
+
+  /** Composable UI: `<Card>`, `<Arrow>`, `<Spotlight>`, custom components. */
+  children: React.ReactNode;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Consumer hook return type
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Public shape of the `useTutorial()` hook. Read state, navigate, or
+ * close the tour programmatically. Available to any descendant of
+ * `<Tutorial>`.
+ */
+export interface TutorialApi<Meta = never> {
+  /** Coarse state of the tutorial machine. */
+  status: TutorialStatus;
+  /** The active step, or `null` when `status === "closed"`. */
+  step: Step<Meta> | null;
+  /** Zero-based index of the active step, or `-1` when closed. */
+  index: number;
+  /** Total number of steps in the tour. */
+  total: number;
+  /** Is the active step the first? `false` when closed. */
+  isFirst: boolean;
+  /** Is the active step the last? `false` when closed. */
+  isLast: boolean;
+  /** Can the tour currently advance? Returns `false` when blocked. */
+  canAdvance: boolean;
+  /** Advance to the next step, or close if already at the last. */
+  next: () => void;
+  /** Step backward. No-op at the first step. */
+  prev: () => void;
+  /** Jump to an arbitrary step by id. */
+  goto: (id: string) => void;
+  /** Close the tour. Fires `onStepLeave` then `onClose`. */
+  close: () => void;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Editor (separately exposed from the editor entry point)
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Called when the user clicks Save in the authoring editor. Receives
+ * the full updated step list. Throwing or rejecting makes the editor
+ * surface an error and fall back to copying the JSON to the clipboard.
+ */
+export type SaveHandler<Meta = never> = (
+  steps: Step<Meta>[],
+) => void | Promise<void>;
+
+/**
+ * Resolves whether the authoring editor should be accessible. See
+ * `@easytour` docs for details; summary:
  *
- * Accepted shapes:
- *
- * - `true` / `false` — explicit on/off, overrides everything else.
- * - `"auto"` (default when prop is omitted) — on in development
- *   (`process.env.NODE_ENV === "development"`), off in production.
- * - `() => boolean` — a plain predicate called on every render. Use for
- *   pure, synchronous checks (feature flags held in React state you
- *   already own, URL query parameters, etc.).
- * - `{ useCanEdit: () => boolean }` — a user-supplied React hook. This is
- *   the correct shape when the check itself calls other hooks, e.g.
- *   reading from an auth context, `useSWR`, or `localStorage` via
- *   `useSyncExternalStore`. The wrapper object makes the intent explicit
- *   so the library can call it at a stable top-level site, respecting
- *   the Rules of Hooks.
- *
- * The library ships `useLocalStorageCanEdit` as a ready-made hook for the
- * common “toggle via `localStorage` key” case.
+ * - `true` / `false` — explicit on/off.
+ * - `"auto"` — on in development, off in production. Default.
+ * - `() => boolean` — synchronous predicate.
+ * - `{ useCanEdit: () => boolean }` — a React hook (required shape
+ *   when the check calls other hooks, e.g. auth context).
  */
 export type CanEdit =
   | boolean
@@ -152,61 +353,19 @@ export type CanEdit =
   | { useCanEdit: () => boolean };
 
 /**
- * Props for the `<TutorialOverlay>` component.
+ * Read-only snapshot of editor state, exposed via `useEditorState()`
+ * so hosts can render their own "unsaved changes" indicators or save
+ * buttons if they prefer.
  */
-export interface TutorialOverlayProps {
-  /** Ordered list of steps. */
-  steps: TutorialStep[];
-  /** Index of the currently active step (controlled). */
-  step: number;
-  /** Called when the user navigates to a different step. */
-  onStepChange: (step: number) => void;
-  /** Called when the user closes or finishes the tour. */
-  onClose: () => void;
-  /** Hint that the host renders a dark theme. Affects default arrow/text colours. */
-  isDark?: boolean;
-  /** URL of an optional brand logo shown in the card header. */
-  logoSrc?: string;
-  /** Width of the logo in pixels. Default 44. */
-  logoWidth?: number;
-  /** Height of the logo in pixels. Default 14. */
-  logoHeight?: number;
-  /** Label shown next to the logo. Default "Guide". */
-  headerLabel?: string;
-  /**
-   * Component used to render the logo. Defaults to a plain HTML `<img>`;
-   * pass `next/image` or any other image component to opt into framework
-   * integrations.
-   */
-  ImageComponent?: ImageLike;
-  /**
-   * Called when a step's `action` field is non-empty. The host decides
-   * what to do with the action string.
-   */
-  onAction?: (action: string, stepIndex: number) => void;
-  /**
-   * Controls whether the authoring editor is accessible. See the
-   * {@link CanEdit} documentation for all accepted shapes. Defaults to
-   * `"auto"`: on in development, off in production.
-   */
-  canEdit?: CanEdit;
-  /**
-   * @deprecated since 0.2.0 — use `canEdit` instead. When set, this prop
-   * takes precedence over `canEdit` to preserve existing behaviour, but
-   * support will be removed in 0.3.0. A console warning is logged in
-   * development when `debug` is supplied.
-   *
-   * Enable the visual authoring editor. When true, users can drag arrow
-   * tips, adjust per-step arrow style via sliders, reposition and resize
-   * annotation circles, and save the resulting step list via `onSave`.
-   */
-  debug?: boolean;
-  /**
-   * Invoked when the user clicks Save in the authoring editor. Receives the
-   * full updated step list as a plain-object array. If this prop is omitted,
-   * Save falls back to copying the JSON to the clipboard.
-   */
-  onSave?: SaveHandler;
-  /** Called after a successful `onSave`. Typically used to re-fetch steps. */
-  onSaved?: () => void;
+export interface EditorState {
+  /** True while the editor is active (authoring allowed). */
+  active: boolean;
+  /** How many pending per-step overrides are unsaved. */
+  unsavedCount: number;
+  /** Current save phase for feedback UI. */
+  saveStatus: "idle" | "saving" | "saved" | "error";
+  /** Programmatic save. Same behaviour as the editor's Save button. */
+  save: () => Promise<void>;
+  /** Discard all pending overrides without saving. */
+  revert: () => void;
 }

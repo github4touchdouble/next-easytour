@@ -1,76 +1,153 @@
 /**
- * next-easytour — interactive tutorial overlay for React and Next.js.
+ * @packageDocumentation
  *
- * Public entry point. Everything a consumer of the library needs is
- * re-exported from here; nothing else in `src/` is part of the public API.
+ * next-easytour 0.3.0
+ * ────────────────────
  *
- * ## Quick start
+ * A headless tutorial library built as composable components. Wrap
+ * your UI in `<Tutorial>`, drop in the overlay primitives you want
+ * (`<Card>`, `<Arrow>`, `<Spotlight>`, `<Circles>`), and register
+ * target elements through `useTutorialTarget`.
+ *
+ * Everything exported from here is public, stable surface; anything
+ * else in `src/` is internal and may change without notice.
+ *
+ * @example Minimal tour
  *
  * ```tsx
  * "use client";
  * import { useState } from "react";
- * import { TutorialOverlay, type TutorialStep } from "next-easytour";
- * import "next-easytour/styles.css";   // import once, at the app root
+ * import {
+ *   Tutorial,
+ *   Card,
+ *   Arrow,
+ *   Spotlight,
+ *   useTutorialTarget,
+ *   type Step,
+ * } from "next-easytour";
+ * import "next-easytour/styles.css";
  *
- * const STEPS: TutorialStep[] = [
- *   { title: "Welcome", body: "Let me show you around." },
- *   { title: "Save", body: "Click here.", target: "save-button" },
+ * const steps: Step[] = [
+ *   { id: "welcome", title: "Hi", body: "Let me show you around." },
+ *   {
+ *     id: "save",
+ *     title: "Save",
+ *     body: "Your work goes here.",
+ *     targets: ["save-button"],
+ *     annotations: {
+ *       spotlight: true,
+ *       arrow: { to: { space: "target", x: 50, y: 50 } },
+ *     },
+ *   },
  * ];
  *
+ * function SaveButton() {
+ *   const ref = useTutorialTarget("save-button");
+ *   return <button ref={ref}>Save</button>;
+ * }
+ *
  * export default function Page() {
- *   const [step, setStep] = useState<number | null>(null);
+ *   const [stepId, setStepId] = useState<string | null>(null);
  *   return (
  *     <>
- *       <button onClick={() => setStep(0)}>Start tour</button>
- *       <button data-tutorial-id="save-button">Save</button>
- *       {step !== null && (
- *         <TutorialOverlay
- *           steps={STEPS}
- *           step={step}
- *           onStepChange={setStep}
- *           onClose={() => setStep(null)}
- *         />
- *       )}
+ *       <button onClick={() => setStepId("welcome")}>Start tour</button>
+ *       <SaveButton />
+ *       <Tutorial
+ *         steps={steps}
+ *         stepId={stepId}
+ *         onStepChange={setStepId}
+ *       >
+ *         <Spotlight />
+ *         <Arrow />
+ *         <Card />
+ *       </Tutorial>
  *     </>
  *   );
  * }
  * ```
  *
- * ## Public surface
+ * @example Branded card + authoring editor
  *
- * - `TutorialOverlay` — the component.
- * - Types: `TutorialOverlayProps`, `TutorialStep`, `TutorialCircle`,
- *   `ArrowStyle`, `ArrowPoint`, `SaveHandler`, `ImageLike`, `CanEdit`.
- * - Hooks: `useLocalStorageCanEdit` (ready-made `canEdit` source backed
- *   by a `localStorage` key).
- * - Geometry helpers: `DEFAULT_STYLE`, `autoTargetPoint`, `resolvePoint`,
- *   `cardSourcePx`, `pixelToRelative`, `buildPath`. Exposed for custom
- *   arrow rendering and unit tests; a typical consumer does not need them.
+ * ```tsx
+ * import { Editor, EditorHandles, useEditorState } from "next-easytour";
  *
- * The stylesheet is a separate entry point: `import "next-easytour/styles.css"`.
- *
- * @see README.md for the full guide.
- * @see LLMS.md for a dense reference aimed at code assistants.
- * @packageDocumentation
+ * <Editor
+ *   steps={steps}
+ *   canEdit={isAdmin}
+ *   onSave={async (s) => { await fetch("/api/tutorial", { method: "POST", body: JSON.stringify(s) }); }}
+ * >
+ *   {({ steps }) => (
+ *     <Tutorial steps={steps} stepId={stepId} onStepChange={setStepId}>
+ *       <Spotlight />
+ *       <Arrow />
+ *       <Card>{(args) => <MyBrandedCard {...args} />}</Card>
+ *       <EditorHandles />
+ *     </Tutorial>
+ *   )}
+ * </Editor>
+ * ```
  */
 
-export { TutorialOverlay } from "./TutorialOverlay";
+// ────────────────────────────────────────────────────────────────────────
+// Core
+// ────────────────────────────────────────────────────────────────────────
+
+export { Tutorial, useTutorial } from "./core/Tutorial";
+export { useTutorialTarget } from "./core/useTutorialTarget";
+
+// ────────────────────────────────────────────────────────────────────────
+// Overlay
+// ────────────────────────────────────────────────────────────────────────
+
+export { Card } from "./overlay/Card";
+export type { CardProps, CardRenderArgs } from "./overlay/Card";
+
+export { Arrow, useCardRect } from "./overlay/Arrow";
+export type { ArrowProps } from "./overlay/Arrow";
+
+export { Spotlight } from "./overlay/Spotlight";
+export type { SpotlightProps } from "./overlay/Spotlight";
+
+export { Circles } from "./overlay/Circles";
+export type { CirclesProps } from "./overlay/Circles";
+
+// ────────────────────────────────────────────────────────────────────────
+// Editor
+// ────────────────────────────────────────────────────────────────────────
+
+export { Editor, useEditorState } from "./editor/Editor";
+export type { EditorProps } from "./editor/Editor";
+export { EditorHandles } from "./editor/EditorHandles";
+
+// ────────────────────────────────────────────────────────────────────────
+// Types — the full public type surface
+// ────────────────────────────────────────────────────────────────────────
+
 export type {
-  ArrowPoint,
+  // Coordinate systems
+  TargetPoint,
+  ViewportAnchor,
+  // Annotations
+  Arrow as ArrowAnnotation,
   ArrowStyle,
-  TutorialCircle,
-  TutorialStep,
-  TutorialOverlayProps,
-  SaveHandler,
-  ImageLike,
+  Circle,
+  Annotations,
+  // Step
+  Step,
+  // Runtime
+  TutorialStatus,
+  TutorialApi,
+  TutorialProps,
+  // Editor
   CanEdit,
+  EditorState,
+  SaveHandler,
 } from "./types";
-export { useLocalStorageCanEdit } from "./useDebugMode";
-export {
-  DEFAULT_STYLE,
-  autoTargetPoint,
-  resolvePoint,
-  cardSourcePx,
-  pixelToRelative,
-  buildPath,
-} from "./geometry";
+
+// ────────────────────────────────────────────────────────────────────────
+// Constructors & helpers for coord spaces — exported so consumers can
+// build step JSON in TypeScript without memorising the discriminator
+// fields. Optional — plain object literals work too.
+// ────────────────────────────────────────────────────────────────────────
+
+export { targetPoint, viewportAnchor } from "./coords";

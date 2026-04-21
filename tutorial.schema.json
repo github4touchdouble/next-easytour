@@ -1,165 +1,128 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://unpkg.com/next-easytour/tutorial.schema.json",
-  "title": "next-easytour tutorial",
-  "description": "Schema for a next-easytour step list. Validates arrays of TutorialStep objects as defined in src/types.ts.",
-  "type": "object",
-  "properties": {
-    "steps": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/TutorialStep"
-      }
-    }
-  },
+  "title": "next-easytour tutorial (0.3.x)",
+  "description": "JSON schema for a next-easytour step list. Validates arrays of Step objects as defined in src/types.ts.",
+  "type": "array",
+  "items": { "$ref": "#/definitions/Step" },
+
   "definitions": {
-    "TutorialStep": {
+    "Step": {
       "type": "object",
-      "required": [
-        "title",
-        "body"
-      ],
+      "required": ["id"],
       "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable, unique identifier for this step. Used for navigation, deep-linking, and lifecycle callbacks."
+        },
         "title": {
           "type": "string",
-          "description": "Heading displayed in the card."
+          "description": "Heading displayed by the default <Card>."
         },
         "body": {
           "type": "string",
-          "description": "Body copy displayed below the heading."
+          "description": "Body copy displayed by the default <Card>."
         },
-        "target": {
-          "type": "string",
-          "description": "The data-tutorial-id value of the element to highlight. Bare id, not a CSS selector."
-        },
-        "targetLabel": {
-          "type": "string",
-          "description": "Small caption rendered at the arrow tip."
-        },
-        "arrowTo": {
-          "$ref": "#/definitions/ArrowPoint"
-        },
-        "arrowStyle": {
-          "$ref": "#/definitions/ArrowStyle"
-        },
-        "circles": {
+        "targets": {
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/TutorialCircle"
-          }
+          "items": { "type": "string" },
+          "description": "Registered target ids this step highlights or points at. Matches the arg passed to useTutorialTarget()."
         },
-        "cardAnchor": {
+        "annotations": { "$ref": "#/definitions/Annotations" },
+        "cardAnchor": { "$ref": "#/definitions/ViewportAnchor" },
+        "meta": {
           "type": "object",
-          "description": "Where the tutorial card sits on screen for this step. Expressed as viewport percentages (0–100) of the top-left corner. Omit for default bottom-centre placement.",
-          "required": [
-            "x",
-            "y"
-          ],
-          "properties": {
-            "x": {
-              "type": "number",
-              "description": "Horizontal position as a percentage of the viewport width.",
-              "minimum": -50,
-              "maximum": 100
-            },
-            "y": {
-              "type": "number",
-              "description": "Vertical position as a percentage of the viewport height.",
-              "minimum": 0,
-              "maximum": 100
-            }
-          },
-          "additionalProperties": false
-        },
-        "action": {
-          "type": "string",
-          "description": "Free-form string surfaced through onAction when the step activates."
-        }
-      },
-      "additionalProperties": true
-    },
-    "ArrowPoint": {
-      "type": "object",
-      "required": [
-        "x",
-        "y"
-      ],
-      "properties": {
-        "x": {
-          "type": "number",
-          "description": "Horizontal position as a percentage of the target rect (may fall outside 0–100)."
-        },
-        "y": {
-          "type": "number",
-          "description": "Vertical position as a percentage of the target rect (may fall outside 0–100)."
+          "description": "Host-owned metadata. Shape is declared by the consumer; the library preserves it verbatim."
         }
       },
       "additionalProperties": false
     },
+
+    "TargetPoint": {
+      "type": "object",
+      "required": ["space", "x", "y"],
+      "properties": {
+        "space": { "const": "target" },
+        "x": {
+          "type": "number",
+          "description": "Horizontal position as a percentage of the target's width. May fall outside 0–100."
+        },
+        "y": {
+          "type": "number",
+          "description": "Vertical position as a percentage of the target's height. May fall outside 0–100."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "ViewportAnchor": {
+      "type": "object",
+      "required": ["space", "x", "y"],
+      "properties": {
+        "space": { "const": "viewport" },
+        "x": {
+          "type": "number",
+          "description": "Horizontal position as a percentage of the viewport width. May fall outside 0–100."
+        },
+        "y": {
+          "type": "number",
+          "description": "Vertical position as a percentage of the viewport height. May fall outside 0–100."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "Annotations": {
+      "type": "object",
+      "properties": {
+        "arrow": { "$ref": "#/definitions/Arrow" },
+        "circles": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Circle" }
+        },
+        "spotlight": {
+          "type": "boolean",
+          "description": "Dim the viewport except for cutouts around the step's targets."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "Arrow": {
+      "type": "object",
+      "required": ["to"],
+      "properties": {
+        "to": { "$ref": "#/definitions/TargetPoint" },
+        "label": { "type": "string" },
+        "style": { "$ref": "#/definitions/ArrowStyle" }
+      },
+      "additionalProperties": false
+    },
+
     "ArrowStyle": {
       "type": "object",
       "properties": {
-        "bend": {
-          "type": "number",
-          "minimum": 5,
-          "maximum": 80,
-          "default": 30
-        },
-        "flip": {
-          "type": "boolean",
-          "default": false
-        },
-        "strokeWidth": {
-          "type": "number",
-          "default": 1.5
-        },
-        "dashed": {
-          "type": "boolean",
-          "default": false
-        },
-        "headSize": {
-          "type": "number",
-          "default": 8
-        },
-        "loopEnd": {
-          "type": "boolean",
-          "default": false
-        }
+        "bend": { "type": "number", "minimum": 5, "maximum": 80, "default": 30 },
+        "flip": { "type": "boolean", "default": false },
+        "strokeWidth": { "type": "number", "default": 1.5 },
+        "dashed": { "type": "boolean", "default": false },
+        "headSize": { "type": "number", "default": 8 },
+        "loopEnd": { "type": "boolean", "default": false }
       },
       "additionalProperties": false
     },
-    "TutorialCircle": {
+
+    "Circle": {
       "type": "object",
-      "required": [
-        "x",
-        "y",
-        "r"
-      ],
+      "required": ["x", "y", "r"],
       "properties": {
-        "x": {
-          "type": "number",
-          "description": "Centre x, percentage of target width."
-        },
-        "y": {
-          "type": "number",
-          "description": "Centre y, percentage of target height."
-        },
-        "r": {
-          "type": "number",
-          "description": "Horizontal radius, percentage of target width."
-        },
-        "ry": {
-          "type": "number",
-          "description": "Vertical radius, percentage of target height. Defaults to r."
-        },
-        "rot": {
-          "type": "number",
-          "description": "Rotation in degrees."
-        },
-        "label": {
-          "type": "string",
-          "description": "Optional label rendered below the ellipse."
-        }
+        "x": { "type": "number", "description": "Centre x, percentage of target width." },
+        "y": { "type": "number", "description": "Centre y, percentage of target height." },
+        "r": { "type": "number", "description": "Horizontal radius, percentage of target width." },
+        "ry": { "type": "number", "description": "Vertical radius, percentage of target height. Defaults to r (circle)." },
+        "rot": { "type": "number", "description": "Rotation in degrees." },
+        "label": { "type": "string", "description": "Optional label rendered below the ellipse." }
       },
       "additionalProperties": false
     }

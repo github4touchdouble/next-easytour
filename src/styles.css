@@ -1,462 +1,269 @@
 /*
- * Default styles for next-easytour.
+ * next-easytour 0.3.0 — default stylesheet.
  *
- * Import via `import "next-easytour/styles.css"`.
+ * Import once at your app's root:
  *
- * All rules are scoped under `.nto-*` class names that the component
- * emits. Colours and tokens are driven by CSS custom properties so
- * applications can theme the overlay without rewriting any class.
+ *     import "next-easytour/styles.css";
  *
- * If you prefer Tailwind, set `styled={false}` (or just don't import
- * this file) and pass your own classNames via the className props.
+ * Every class is prefixed `eto-` and every custom property `--eto-`
+ * to avoid collisions with host app styles. The colour system is
+ * driven by a single accent variable (`--eto-accent`); overriding
+ * it is the normal way to brand the overlay.
+ *
+ * Consumers that prefer to bring their own styling entirely can skip
+ * this import — the component class names are stable and documented,
+ * so targeting them from host CSS works without opt-in on the
+ * library side.
  */
 
+/* ── Design tokens ── */
+
 :root {
-  --nto-accent: #4285F4;
-  /* Surface colour the card sits on. Override per-app to match
-     your theme background (e.g. `--nto-surface: var(--background)`). */
-  --nto-surface: #ffffff;
-  --nto-border: color-mix(in srgb, var(--nto-accent) 25%, #e5e7eb);
-  --nto-border-soft: color-mix(in srgb, var(--nto-accent) 15%, #f3f4f6);
-  --nto-bg-start: color-mix(in srgb, var(--nto-accent) 4%, var(--nto-surface));
-  --nto-bg-end: color-mix(in srgb, var(--nto-accent) 1%, var(--nto-surface));
-  --nto-shadow: color-mix(in srgb, var(--nto-accent) 20%, transparent);
-  --nto-fg: #18181b;
-  --nto-muted: #71717a;
-  --nto-muted-soft: #a1a1aa;
-  --nto-hover-bg: rgba(0, 0, 0, 0.06);
-  --nto-arrow: #404040;
-  --nto-arrow-opacity: 0.35;
+  /* Accent — single source of truth. Override per-app:
+       :root { --eto-accent: #262262; }   // MuTopia navy
+   */
+  --eto-accent: #4285F4;
+
+  /* Surface the card sits on. Override to your app background so the
+     card visually belongs to the page rather than floating detached.
+       :root { --eto-surface: var(--background); }
+   */
+  --eto-surface: #ffffff;
+
+  /* Derived tokens. Each mixes the accent into a neutral so the card
+     reads crisply against bright or coloured surfaces without
+     transparency. */
+  --eto-border:      color-mix(in srgb, var(--eto-accent) 25%, #e5e7eb);
+  --eto-border-soft: color-mix(in srgb, var(--eto-accent) 15%, #f3f4f6);
+  --eto-bg-start:    color-mix(in srgb, var(--eto-accent)  4%, var(--eto-surface));
+  --eto-bg-end:      color-mix(in srgb, var(--eto-accent)  1%, var(--eto-surface));
+  --eto-shadow:      color-mix(in srgb, var(--eto-accent) 20%, transparent);
+
+  /* Text & muted */
+  --eto-fg:          #18181b;
+  --eto-muted:       #71717a;
+  --eto-muted-soft:  #a1a1aa;
+  --eto-hover-bg:    rgba(0, 0, 0, 0.06);
+
+  /* Arrow — decoupled from accent so its visual weight can be tuned
+     without disturbing the card. */
+  --eto-arrow:         #404040;
+  --eto-arrow-opacity: 0.35;
+
+  /* Sizing */
+  --eto-card-width:     min(480px, calc(100vw - 2rem));
+  --eto-card-radius:    0.5rem;
+  --eto-card-z:         55;
+  --eto-arrow-z:        50;
+  --eto-circles-z:      45;
+  --eto-spotlight-z:    44;
+  --eto-editor-z:       60;
 }
 
-.nto-dark {
-  --nto-surface: #18181b;
-  --nto-border: color-mix(in srgb, var(--nto-accent) 30%, #27272a);
-  --nto-border-soft: color-mix(in srgb, var(--nto-accent) 15%, #27272a);
-  --nto-bg-start: color-mix(in srgb, var(--nto-accent) 8%, var(--nto-surface));
-  --nto-bg-end: color-mix(in srgb, var(--nto-accent) 3%, var(--nto-surface));
-  --nto-shadow: color-mix(in srgb, var(--nto-accent) 20%, transparent);
-  --nto-fg: #fafafa;
-  --nto-muted: #a1a1aa;
-  --nto-muted-soft: #71717a;
-  --nto-hover-bg: rgba(255, 255, 255, 0.08);
-  --nto-arrow: #a0a0a0;
-  --nto-arrow-opacity: 0.45;
+/* Dark-mode scope. Host can toggle by adding `.dark` to an ancestor
+   (matches most modern Tailwind / shadcn / CSS-variables setups). */
+.dark {
+  --eto-surface:     #18181b;
+  --eto-border:      color-mix(in srgb, var(--eto-accent) 30%, #27272a);
+  --eto-border-soft: color-mix(in srgb, var(--eto-accent) 15%, #27272a);
+  --eto-bg-start:    color-mix(in srgb, var(--eto-accent)  8%, var(--eto-surface));
+  --eto-bg-end:      color-mix(in srgb, var(--eto-accent)  3%, var(--eto-surface));
+  --eto-shadow:      color-mix(in srgb, var(--eto-accent) 20%, transparent);
+  --eto-fg:          #fafafa;
+  --eto-muted:       #a1a1aa;
+  --eto-muted-soft:  #71717a;
+  --eto-hover-bg:    rgba(255, 255, 255, 0.08);
+  --eto-arrow:         #a0a0a0;
+  --eto-arrow-opacity: 0.45;
 }
 
-.nto-card {
-  /* Position — `top` and `left` are applied inline by the component,
-     resolved from the active step's `cardAnchor` (or a default bottom-
-     centre placement). Keep the element floating (`position: fixed`)
-     so it does not participate in document flow and has a stable
-     coordinate system regardless of scroll or host layout. */
-  position: fixed;
-  z-index: 55;                    /* above arrow (50) and circles (45) */
-  width: min(480px, calc(100vw - 2rem));
+/* ── Card ── */
+
+.eto-card {
+  /* `position: fixed` is set inline by <Card> together with left/top or
+     left/bottom, depending on whether the active step has a cardAnchor.
+     We don't duplicate that here — the inline style wins. */
+  z-index: var(--eto-card-z);
+  width: var(--eto-card-width);
   max-width: calc(100vw - 2rem);
 
-  border-radius: 0.5rem;
-  border: 1px solid var(--nto-border);
+  border-radius: var(--eto-card-radius);
+  border: 1px solid var(--eto-border);
   overflow: hidden;
-  background: linear-gradient(135deg, var(--nto-bg-start) 0%, var(--nto-bg-end) 100%);
-  box-shadow: 0 0 24px -4px var(--nto-shadow), 0 1px 3px rgba(0, 0, 0, 0.08);
-  animation: nto-card-in 180ms ease-out;
-  color: var(--nto-fg);
+  background: linear-gradient(135deg, var(--eto-bg-start) 0%, var(--eto-bg-end) 100%);
+  box-shadow:
+    0 0 24px -4px var(--eto-shadow),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+  color: var(--eto-fg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: eto-card-in 180ms ease-out;
 }
 
-/* Drag handle shown inside the card header when the authoring editor
-   is active. Lets the author reposition the card per step. */
-.nto-card-drag-handle {
+.eto-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+  border-bottom: 1px solid var(--eto-border-soft);
+  font-size: 0.75rem;
+}
+
+.eto-progress {
+  color: var(--eto-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.eto-close {
+  all: unset;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-right: 0.25rem;
   border-radius: 4px;
-  cursor: grab;
-  color: var(--nto-muted);
-  user-select: none;
-  touch-action: none;
+  color: var(--eto-muted);
+  font-size: 1rem;
+  line-height: 1;
   transition: background 120ms ease, color 120ms ease;
 }
-.nto-card-drag-handle:hover {
-  background: var(--nto-hover-bg);
-  color: var(--nto-fg);
-}
-.nto-card-drag-handle.nto-dragging {
-  cursor: grabbing;
-  background: var(--nto-hover-bg);
-  color: var(--nto-fg);
+.eto-close:hover {
+  background: var(--eto-hover-bg);
+  color: var(--eto-fg);
 }
 
-.nto-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--nto-border-soft);
+.eto-body {
+  padding: 0.75rem;
 }
 
-.nto-header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.eto-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--eto-fg);
 }
 
-.nto-header-label {
-  font-size: 10px;
-  color: var(--nto-muted);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.nto-header-count {
-  font-size: 10px;
-  color: var(--nto-muted-soft);
-  font-variant-numeric: tabular-nums;
-}
-
-.nto-header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.nto-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.125rem;
-  padding: 0.125rem 0.5rem;
-  font-size: 10px;
-  font-weight: 500;
-  border-radius: 0.25rem;
-  border: 1px solid var(--nto-border);
-  color: var(--nto-muted);
-  background: transparent;
-  cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
-}
-
-.nto-btn:hover {
-  color: var(--nto-fg);
-  background: var(--nto-hover-bg);
-}
-
-.nto-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.nto-close {
-  color: var(--nto-muted-soft);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  display: inline-flex;
-}
-
-.nto-close:hover {
-  color: var(--nto-fg);
-}
-
-.nto-body {
-  padding: 0.625rem 0.75rem 0.375rem;
-  min-height: 84px;
-}
-
-.nto-body-inner {
-  transition: opacity 160ms ease-out;
-}
-
-.nto-body-inner.nto-hidden {
-  opacity: 0;
-  transition: opacity 80ms ease-in;
-}
-
-.nto-title {
-  font-size: 15px;
-  font-weight: 500;
+.eto-copy {
   margin: 0;
-  color: var(--nto-fg);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--eto-muted);
 }
 
-.nto-copy {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--nto-muted);
-  margin: 0.25rem 0 0;
-}
-
-.nto-footer {
-  padding: 0.5rem 0.75rem;
-  border-top: 1px solid var(--nto-border-soft);
-}
-
-.nto-progress {
-  display: flex;
-  gap: 2px;
-  margin-bottom: 0.625rem;
-}
-
-.nto-progress-seg {
-  height: 2px;
-  flex: 1;
-  border-radius: 9999px;
-  cursor: pointer;
-  border: none;
-  padding: 0;
-  transition: background-color 200ms ease;
-}
-
-.nto-nav {
+.eto-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--eto-border-soft);
 }
 
-.nto-nav-count {
-  font-size: 9px;
-  color: var(--nto-muted-soft);
-  font-variant-numeric: tabular-nums;
-}
-
-.nto-nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.nto-nav-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.125rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  color: var(--nto-muted);
-  background: transparent;
-  border: none;
+.eto-btn {
+  all: unset;
   cursor: pointer;
-}
-
-.nto-nav-back:hover {
-  color: var(--nto-fg);
-  background: var(--nto-hover-bg);
-}
-
-.nto-nav-next {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.125rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
-  border-radius: 0.375rem;
-  color: var(--nto-fg);
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--nto-fg) 20%, transparent);
-  cursor: pointer;
-  transition: background 120ms ease;
+  padding: 0.3125rem 0.625rem;
+  border-radius: 4px;
+  transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+.eto-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.eto-btn-secondary {
+  color: var(--eto-muted);
+}
+.eto-btn-secondary:not([disabled]):hover {
+  background: var(--eto-hover-bg);
+  color: var(--eto-fg);
+}
+.eto-btn-primary {
+  color: var(--eto-accent);
+  background: color-mix(in srgb, var(--eto-accent) 8%, transparent);
+}
+.eto-btn-primary:not([disabled]):hover {
+  background: color-mix(in srgb, var(--eto-accent) 14%, transparent);
 }
 
-.nto-nav-next:hover {
-  background: var(--nto-hover-bg);
-}
+/* ── Arrow ── */
 
-.nto-nav-done {
-  border-color: var(--nto-accent);
-}
-
-.nto-nav-done:hover {
-  background: color-mix(in srgb, var(--nto-accent) 10%, transparent);
-}
-
-.nto-arrow-svg {
+.eto-arrow-svg {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 50;
+  overflow: visible;
+  z-index: var(--eto-arrow-z);
 }
 
-.nto-circles-svg {
+/* ── Circles ── */
+
+.eto-circles-svg {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 45;
+  overflow: visible;
+  z-index: var(--eto-circles-z);
 }
 
-.nto-debug-handle {
+/* ── Spotlight ── */
+
+.eto-spotlight-svg {
   position: fixed;
-  z-index: 60;
-  cursor: move;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--eto-spotlight-z);
+  /* pointer-events toggled inline by <Spotlight> based on blockClicks prop. */
 }
 
-.nto-debug-handle-dot {
-  width: 16px;
-  height: 16px;
+/* ── Editor handles ── */
+
+.eto-editor-card-handle {
+  z-index: var(--eto-editor-z);
+  background: color-mix(in srgb, var(--eto-accent) 60%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--eto-accent) 80%, transparent);
+  border-radius: 4px;
+  cursor: grab;
+  transition: background 100ms ease, transform 100ms ease;
+}
+.eto-editor-card-handle:hover {
+  background: color-mix(in srgb, var(--eto-accent) 75%, transparent);
+  transform: scale(1.05);
+}
+.eto-editor-card-handle.eto-dragging {
+  cursor: grabbing;
+  background: color-mix(in srgb, var(--eto-accent) 90%, transparent);
+  transform: scale(1.1);
+}
+
+.eto-editor-tip-handle {
+  z-index: var(--eto-editor-z);
+  background: color-mix(in srgb, var(--eto-accent) 25%, transparent);
+  border: 1.5px solid var(--eto-accent);
   border-radius: 9999px;
-  border: 1.5px solid #3b82f6;
-  background: rgba(59, 130, 246, 0.1);
-  transition: all 120ms ease;
+  cursor: grab;
+  transition: background 100ms ease, transform 100ms ease;
 }
-
-.nto-debug-handle-dot.nto-dragging {
-  border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.15);
-  transform: scale(1.25);
+.eto-editor-tip-handle:hover {
+  background: color-mix(in srgb, var(--eto-accent) 45%, transparent);
+  transform: scale(1.2);
 }
-
-.nto-debug-handle-dot.nto-dirty {
-  border-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.1);
-}
-
-.nto-debug-handle-label {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 2px;
-  font-size: 7px;
-  font-family: ui-monospace, monospace;
-  white-space: nowrap;
-  color: rgba(59, 130, 246, 0.4);
-}
-
-.nto-debug-handle-label.nto-dirty {
-  color: rgba(245, 158, 11, 0.6);
-}
-
-.nto-debug-panel {
-  padding: 0 0.75rem 0.5rem;
-}
-
-.nto-debug-row {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin-bottom: 0.25rem;
-}
-
-.nto-debug-readout {
-  font-size: 8px;
-  font-family: ui-monospace, monospace;
-  color: var(--nto-muted-soft);
-}
-
-.nto-debug-dirty {
-  font-size: 8px;
-  font-family: ui-monospace, monospace;
-  color: rgba(245, 158, 11, 0.8);
-}
-
-.nto-debug-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 0.75rem;
-  row-gap: 0.25rem;
-}
-
-.nto-debug-slider {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.nto-debug-slider > span:first-child {
-  font-size: 8px;
-  color: var(--nto-muted-soft);
-  width: 32px;
-  flex-shrink: 0;
-  font-family: ui-monospace, monospace;
-}
-
-.nto-debug-slider input[type="range"] {
-  flex: 1;
-  height: 2px;
-  accent-color: var(--nto-accent);
-  cursor: pointer;
-}
-
-.nto-debug-slider > span:last-child {
-  font-size: 8px;
-  font-family: ui-monospace, monospace;
-  color: var(--nto-muted-soft);
-  width: 16px;
-  text-align: right;
-}
-
-.nto-debug-checks {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.nto-debug-checks label {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  cursor: pointer;
-  font-size: 8px;
-  font-family: ui-monospace, monospace;
-  color: var(--nto-muted-soft);
-}
-
-.nto-debug-checks input[type="checkbox"] {
-  width: 10px;
-  height: 10px;
-  accent-color: var(--nto-accent);
-  cursor: pointer;
-}
-
-/* ── Target highlighting ── */
-.tutorial-highlight {
-  animation: nto-highlight-pulse 2s ease-in-out infinite;
-  border-radius: 6px;
+.eto-editor-tip-handle.eto-dragging {
+  cursor: grabbing;
+  background: var(--eto-accent);
+  transform: scale(1.3);
 }
 
 /* ── Keyframes ── */
-@keyframes nto-card-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
 
-@keyframes nto-arrow-draw {
-  from { stroke-dashoffset: 1000; }
-  to   { stroke-dashoffset: 0; }
-}
-
-@keyframes nto-arrow-pulse {
-  0%, 100% { opacity: 0.7; }
-  50%      { opacity: 1; }
-}
-
-@keyframes nto-highlight-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 transparent; }
-  50%      { box-shadow: 0 0 0 2px color-mix(in srgb, var(--nto-accent) 25%, transparent); }
-}
-
-@keyframes nto-line-in {
-  from { stroke-dashoffset: 800; }
-  to   { stroke-dashoffset: 0; }
-}
-
-@keyframes nto-ellipse-in {
-  from { stroke-dashoffset: 400; opacity: 0; }
-  to   { stroke-dashoffset: 0; opacity: 1; }
-}
-
-@keyframes nto-label-in {
+@keyframes eto-card-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }

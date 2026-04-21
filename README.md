@@ -1,321 +1,281 @@
 # next-easytour
 
-Interactive tutorial overlay for React and Next.js. Step-based guide with animated SVG arrows, element highlighting, annotation ellipses, and an optional in-app editor for authoring tours.
+Headless, composable tutorial overlay for React and Next.js. Compose
+`<Tutorial>` + `<Card>` + `<Arrow>` + `<Spotlight>` + `<Circles>` with
+full branding control, drag-to-author editor, typed coordinate systems.
 
-> **Using a code assistant?** See [`LLMS.md`](./LLMS.md) / [`AGENTS.md`](./AGENTS.md) for a dense integration reference.
-
-```yaml
-install: npm install next-easytour lucide-react
-peer_deps: [react >=18, react-dom >=18, lucide-react >=0.300]
-import: import { TutorialOverlay } from "next-easytour"
-stylesheet: import "next-easytour/styles.css"
-requires_use_client: true       # Next.js App Router
-ssr_safe: true
-```
+> **0.3.0 is on the `point-three` branch and published as an alpha.**
+> It's a full rewrite of 0.2.x. See `MIGRATING.md`. The stable 0.2.x
+> API continues to receive bug-fix releases on `master`.
 
 ## Install
 
 ```bash
-npm install next-easytour lucide-react
+npm install next-easytour@next
 ```
 
-`react`, `react-dom`, and `lucide-react` are peer dependencies. Import the stylesheet once at the app root:
+Peer deps: `react` >= 18, `react-dom` >= 18.
 
 ```tsx
-// app/layout.tsx  (Next.js App Router)
-// pages/_app.tsx  (Next.js Pages Router)
-// src/main.tsx    (Vite / CRA)
 import "next-easytour/styles.css";
 ```
-
-## Setup checklist
-
-1. Install the package and peer deps.
-2. Import `next-easytour/styles.css` once at the app root.
-3. Add `"use client";` to the file that renders `<TutorialOverlay>` (App Router only).
-4. Tag each highlight target with `data-tutorial-id="your-id"`.
-5. Hold `step: number | null` in state; render the overlay only when `step !== null`.
 
 ## Quick start
 
 ```tsx
 "use client";
 import { useState } from "react";
-import { TutorialOverlay, type TutorialStep } from "next-easytour";
+import {
+  Tutorial,
+  Card,
+  Arrow,
+  Spotlight,
+  useTutorialTarget,
+  type Step,
+} from "next-easytour";
+import "next-easytour/styles.css";
 
-const STEPS: TutorialStep[] = [
-  { title: "Welcome", body: "This is your dashboard." },
+const steps: Step[] = [
+  { id: "welcome", title: "Welcome", body: "Let me show you around." },
   {
-    title: "Save",
-    body: "Persist your changes here.",
-    target: "save-button",
-    targetLabel: "Save",
-    arrowTo: { x: 50, y: 50 },
-    arrowStyle: { bend: 25 },
+    id: "save",
+    title: "Save your work",
+    body: "Click here to save.",
+    targets: ["save-button"],
+    annotations: {
+      spotlight: true,
+      arrow: { to: { space: "target", x: 50, y: 90 } },
+    },
   },
-  { title: "Data", body: "Recent entries appear here.", target: "data-list" },
+  { id: "done", title: "That's it", body: "Enjoy." },
 ];
 
+function SaveButton() {
+  const ref = useTutorialTarget("save-button");
+  return <button ref={ref}>Save</button>;
+}
+
 export default function Page() {
-  const [step, setStep] = useState<number | null>(null);
+  const [stepId, setStepId] = useState<string | null>(null);
   return (
     <>
-      <button onClick={() => setStep(0)}>Start tour</button>
-      <button data-tutorial-id="save-button">Save</button>
-      <div data-tutorial-id="data-list">...</div>
-
-      {step !== null && (
-        <TutorialOverlay
-          steps={STEPS}
-          step={step}
-          onStepChange={setStep}
-          onClose={() => setStep(null)}
-        />
-      )}
+      <button onClick={() => setStepId("welcome")}>Start tour</button>
+      <SaveButton />
+      <Tutorial
+        steps={steps}
+        stepId={stepId}
+        onStepChange={setStepId}
+      >
+        <Spotlight />
+        <Arrow />
+        <Card />
+      </Tutorial>
     </>
   );
 }
 ```
 
-The id in `data-tutorial-id` is a bare string, **not** a CSS selector. Arrow positioning, scroll/resize tracking, and the highlight ring are handled internally.
+That's the full working tour — three primitives, a provider, a target
+hook, and a state pair.
 
-## API
+## Public surface
 
-### `<TutorialOverlay />`
+### Components
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `steps` | `TutorialStep[]` | — | Ordered step list (required). |
-| `step` | `number` | — | Active step index (controlled). |
-| `onStepChange` | `(i: number) => void` | — | Navigation callback. |
-| `onClose` | `() => void` | — | Close / finish callback. |
-| `isDark` | `boolean` | `false` | Dark-theme hint; toggles `.nto-dark`. |
-| `logoSrc` | `string` | — | Header logo URL. |
-| `logoWidth` / `logoHeight` | `number` | `44` / `14` | Logo dimensions in px. |
-| `headerLabel` | `string` | `"Guide"` | Text beside the logo. |
-| `ImageComponent` | `ImageLike` | `<img>` | Swap in `next/image` or similar. |
-| `onAction` | `(action, i) => void` | — | Fires when a step has a non-empty `action`. |
-| `canEdit` | `CanEdit` | `"auto"` | Who can open the authoring editor. See [Authoring mode](#authoring-mode). |
-| `debug` | `boolean` | — | **Deprecated** since 0.2.0; alias for `canEdit` kept for 0.1.x back-compat. Removed in 0.3.0. |
-| `onSave` | `SaveHandler` | — | Save callback; falls back to clipboard. |
-| `onSaved` | `() => void` | — | Fires after a successful save. |
-
-### `TutorialStep`
-
-```ts
-interface TutorialStep {
-  title: string;
-  body: string;
-  target?: string;                     // data-tutorial-id value
-  targetLabel?: string;
-  arrowTo?: { x: number; y: number };  // tip position, 0–100 % of target
-  arrowStyle?: ArrowStyle;
-  circles?: TutorialCircle[];          // suppresses the arrow when present
-  action?: string;                     // surfaced via onAction
-  [key: string]: unknown;              // unknown fields preserved on save
-}
-```
-
-A JSON Schema for `TutorialStep[]` is available at [`tutorial.schema.json`](./tutorial.schema.json).
-
-### `ArrowStyle` / `TutorialCircle`
-
-```ts
-interface ArrowStyle {
-  bend?: number;        // 5–80, default 30
-  flip?: boolean;       // mirror the arc
-  strokeWidth?: number; // default 1.5
-  dashed?: boolean;
-  headSize?: number;    // default 8
-  loopEnd?: boolean;    // replace head with a loop
-}
-
-interface TutorialCircle {
-  x: number; y: number;   // centre, % of target
-  r: number; ry?: number; // radii, % of target width; ry defaults to r
-  rot?: number;           // degrees
-  label?: string;
-}
-```
-
-## Common mistakes
-
-| Mistake | Fix |
+| Component | Purpose |
 |---|---|
-| `target: "#save-button"` | `target: "save-button"` — bare id, matches `data-tutorial-id` exactly. |
-| Importing `styles.css` inside a Client Component. | Import it once in the root layout / app entry. |
-| Forgetting `"use client";` in Next.js App Router. | Required in the file that renders `<TutorialOverlay>`. |
-| Passing `step={null}`. | `step` is `number`. Gate the overlay: `{step !== null && <TutorialOverlay ... />}`. |
-| Using `next/image` without `ImageComponent`. | `ImageComponent={Image as never}`. |
-| Mounting the overlay inside `overflow: hidden`. | Mount it at the page root; it is `position: fixed`. |
-| Passing a bare hook function to `canEdit`. | Wrap it: `canEdit={{ useCanEdit: useMyHook }}`. Plain functions are called as predicates, not hooks. |
+| `<Tutorial>` | Headless provider. Renders no DOM; holds state and context. |
+| `<Card>` | Tutorial card. Default or render-prop layout. |
+| `<Arrow>` | Bézier arrow from card to target. Auto-routes from the card's nearest edge. |
+| `<Spotlight>` | Dim everything except the step's targets (SVG mask cutout). |
+| `<Circles>` | Annotated ellipses drawn on the target. |
+| `<Editor>` | Authoring mode wrapper. Merges drag-edits into steps, surfaces save. |
+| `<EditorHandles>` | Drag handles for the card and arrow tip. |
 
-## Authoring mode
+### Hooks
 
-The library ships a visual editor for authoring tours in the running UI — drag the arrow tip, adjust stroke / bend / head, resize circle annotations. **Save** invokes `onSave(steps)`; on failure the JSON is copied to the clipboard.
+| Hook | Returns |
+|---|---|
+| `useTutorial<Meta>()` | The full navigation API: `status`, `step`, `index`, `total`, `isFirst`, `isLast`, `canAdvance`, `next`, `prev`, `goto`, `close`. |
+| `useTutorialTarget<E>(id)` | A callback ref to attach to an element. |
+| `useEditorState()` | Editor snapshot: `active`, `unsavedCount`, `saveStatus`, `save`, `revert`. |
+| `useCardRect()` | The card's live bounding rect. Useful for custom overlays that align to the card. |
 
-Access is controlled by the `canEdit` prop, which accepts four shapes:
+### Types
 
-```ts
-type CanEdit =
-  | boolean                             // explicit on/off
-  | "auto"                              // on in dev, off in prod (default)
-  | (() => boolean)                     // sync predicate
-  | { useCanEdit: () => boolean };      // user-supplied React hook
-```
+`Step<Meta>`, `TargetPoint`, `ViewportAnchor`, `Annotations`,
+`ArrowAnnotation`, `ArrowStyle`, `Circle`, `TutorialApi`,
+`TutorialProps`, `TutorialStatus`, `CanEdit`, `EditorState`,
+`SaveHandler`, plus component prop types.
 
-### Auto (default)
+### Constructors
 
-Omit the prop. The editor appears when `process.env.NODE_ENV === "development"` and disappears in production builds:
+`targetPoint(x, y)` and `viewportAnchor(x, y)` stamp the `space`
+discriminator for you when writing steps in TypeScript.
 
-```tsx
-<TutorialOverlay {...rest} />   // editor visible in dev only
-```
-
-### Explicit boolean
-
-```tsx
-<TutorialOverlay {...rest} canEdit={true}  />   // always visible
-<TutorialOverlay {...rest} canEdit={false} />   // always hidden
-```
-
-### `localStorage` toggle
-
-The built-in `useLocalStorageCanEdit` hook reads a boolean from `localStorage`. Flip it from the browser console without redeploying:
+## Full example — branded card + authoring editor
 
 ```tsx
-import { TutorialOverlay, useLocalStorageCanEdit } from "next-easytour";
+"use client";
+import { useState } from "react";
+import {
+  Tutorial,
+  Card,
+  Arrow,
+  Spotlight,
+  Circles,
+  Editor,
+  EditorHandles,
+  useEditorState,
+  useTutorialTarget,
+  type Step,
+} from "next-easytour";
+import "next-easytour/styles.css";
 
-<TutorialOverlay
-  {...rest}
-  canEdit={{ useCanEdit: () => useLocalStorageCanEdit() }}
-/>;
-```
+interface Meta {
+  action?: "scroll-to-top" | "open-panel";
+}
 
-```js
-// In the browser console:
-localStorage.setItem("next-easytour:debug", "true");
-// Reload — the editor appears.
-```
+const steps: Step<Meta>[] = [
+  { id: "intro", title: "Welcome" },
+  {
+    id: "chart",
+    title: "This is the chart",
+    targets: ["chart"],
+    annotations: {
+      spotlight: true,
+      arrow: { to: { space: "target", x: 50, y: 10 } },
+      circles: [{ x: 70, y: 40, r: 12, label: "this cluster" }],
+    },
+    meta: { action: "scroll-to-top" },
+  },
+];
 
-Pass a different key to isolate multiple tours: `useLocalStorageCanEdit("tour:onboarding:debug")`.
-
-### Role-based gate
-
-When the decision depends on async or context-driven state, pass a hook:
-
-```tsx
-import { useAuth } from "./auth";
-
-<TutorialOverlay
-  {...rest}
-  canEdit={{ useCanEdit: () => useAuth().role === "admin" }}
-/>;
-```
-
-The embedded function **must** obey the Rules of Hooks — it is called from a stable top-level site inside the overlay. Treat it exactly like any other custom hook.
-
-### Save callback
-
-Regardless of how access is granted, Save still goes through `onSave`:
-
-```tsx
-<TutorialOverlay
-  {...rest}
-  onSave={async (steps) => {
-    const res = await fetch("/api/tutorial", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(steps),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  }}
-  onSaved={() => refetchSteps()}
-/>
-```
-
-Dev-only API route (`app/api/tutorial/route.ts`):
-
-```ts
-import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-
-export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV !== "development") {
-    return NextResponse.json({ error: "Dev only" }, { status: 403 });
-  }
-  const body = await req.json();
-  await fs.writeFile(
-    path.join(process.cwd(), "public", "tutorial.json"),
-    JSON.stringify(body, null, 2) + "\n",
-    "utf-8",
+function BrandedCard() {
+  return (
+    <Card>
+      {({ step, index, total, isFirst, isLast, canAdvance, next, prev, close }) => (
+        <>
+          <div className="brand-header">
+            <img src="/logo.svg" alt="" height={16} />
+            <span>Guide {index + 1} / {total}</span>
+            <button onClick={close}>×</button>
+          </div>
+          <div className="brand-body">
+            <h4>{step.title}</h4>
+            <p>{step.body}</p>
+          </div>
+          <div className="brand-footer">
+            <button onClick={prev} disabled={isFirst}>Back</button>
+            <button onClick={next} disabled={!canAdvance}>
+              {isLast ? "Done" : "Next"}
+            </button>
+          </div>
+        </>
+      )}
+    </Card>
   );
-  return NextResponse.json({ ok: true });
+}
+
+export default function Page({ isAdmin }: { isAdmin: boolean }) {
+  const [stepId, setStepId] = useState<string | null>(null);
+  const chartRef = useTutorialTarget<HTMLDivElement>("chart");
+
+  return (
+    <div>
+      <div ref={chartRef}>...your chart...</div>
+
+      <Editor
+        steps={steps}
+        canEdit={isAdmin}
+        onSave={async (next) => {
+          await fetch("/api/tutorial", {
+            method: "POST",
+            body: JSON.stringify(next),
+          });
+        }}
+      >
+        {({ steps }) => (
+          <Tutorial<Meta>
+            steps={steps}
+            stepId={stepId}
+            onStepChange={setStepId}
+            onStepEnter={(step) => {
+              if (step.meta?.action === "scroll-to-top") {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+          >
+            <Spotlight />
+            <Arrow />
+            <Circles />
+            <BrandedCard />
+            <EditorHandles />
+          </Tutorial>
+        )}
+      </Editor>
+    </div>
+  );
 }
 ```
-
-## Actions
-
-`action` strings are opaque to the library; interpret them in `onAction`:
-
-```tsx
-<TutorialOverlay
-  {...rest}
-  onAction={(action) => {
-    if (action === "scrollToBottom") window.scrollTo({ top: 99999, behavior: "smooth" });
-    if (action === "openSettings") setSettingsOpen(true);
-  }}
-/>
-```
-
-## `next/image` logo
-
-```tsx
-import Image from "next/image";
-
-<TutorialOverlay {...rest} logoSrc="/logo.svg" ImageComponent={Image as never} />;
-```
-
-`ImageComponent` only needs to accept `src`, `alt`, `width`, `height`, `style`.
 
 ## Theming
 
-Override CSS variables:
+Every visual token is a CSS variable under the `--eto-` prefix.
 
 ```css
 :root {
-  --nto-accent: #10b981;
-  --nto-fg: #1f2937;
-  --nto-muted: #6b7280;
-  --nto-arrow: #4b5563;
+  --eto-accent: #262262;
+  --eto-surface: var(--background);
+}
+.dark {
+  --eto-accent: #72D0F6;
+  --eto-surface: var(--background);
 }
 ```
 
-Full variable set: `--nto-accent`, `--nto-border`, `--nto-border-soft`, `--nto-bg-start`, `--nto-bg-end`, `--nto-shadow`, `--nto-fg`, `--nto-muted`, `--nto-muted-soft`, `--nto-hover-bg`, `--nto-arrow`, `--nto-arrow-opacity`. Scope dark overrides under `.nto-dark`.
+See `src/styles.css` for the full list (border colours, shadows,
+z-index layers, card radius, card width).
 
-Component class names: `.nto-card`, `.nto-header`, `.nto-body`, `.nto-footer`, `.nto-progress-seg`, `.nto-nav-back`, `.nto-nav-next`, `.nto-btn`, `.nto-close`, `.nto-debug-*`, `.nto-arrow-svg`, `.nto-circles-svg`, `.nto-debug-handle`, `.tutorial-highlight`.
+## Authoring
 
-## Geometry helpers
+In the running app (with `canEdit` active), drag the card handle (top-
+left of the card) to reposition. Drag the dot at the arrow tip to re-
+aim. Double-click the card handle to reset. Hit Save — the library
+calls your `onSave(steps)` with the full updated step list.
 
-Exported for reuse or testing:
+## SSR
 
-```ts
-import {
-  DEFAULT_STYLE,
-  autoTargetPoint,
-  resolvePoint,
-  cardSourcePx,
-  pixelToRelative,
-  buildPath,
-} from "next-easytour";
+Fully SSR-safe on Next.js App Router. The Provider and every hook are
+`"use client"`. The components render nothing on the server (step
+`null`); on the client they mount observers once the target DOM is
+ready.
+
+## Comparison with 0.2.x
+
+| | 0.2.x | 0.3.0 |
+|---|---|---|
+| Main component | `<TutorialOverlay>` (all-in-one) | `<Tutorial>` + composables |
+| Branding | Props (`logoSrc`, `headerLabel`) | Render-prop card |
+| Target registration | `data-tutorial-id` attribute | `useTutorialTarget` hook |
+| Custom step metadata | Index signature, untyped | `Step<Meta>` generic, typed |
+| Authoring mode | Inside overlay | Separate `<Editor>` wrapper |
+| Navigation key | Array index | Step id string |
+| Lifecycle | `onAction(string)` | `onOpen` / `onClose` / `onStepEnter` / `onStepLeave` |
+
+## Development
+
+```bash
+npm install
+npm run typecheck
+npm test
+npm run build
 ```
 
-## Examples
+Tests: 80 cases across `tests/state.test.ts`, `tests/coords.test.ts`,
+`tests/geometry.test.ts`, `tests/Tutorial.test.tsx`,
+`tests/Editor.test.tsx`.
 
-- [`examples/nextjs-app/`](./examples/nextjs-app) — Next.js App Router with authoring mode.
-- [`examples/vite-react/`](./examples/vite-react) — minimal Vite + React setup.
+## Licence
 
-## License
-
-MIT.
+MIT. © Jan P Hummel.
