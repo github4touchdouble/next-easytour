@@ -13,11 +13,14 @@
 
 :root {
   --nto-accent: #4285F4;
-  --nto-border: color-mix(in srgb, var(--nto-accent) 25%, transparent);
-  --nto-border-soft: color-mix(in srgb, var(--nto-accent) 15%, transparent);
-  --nto-bg-start: color-mix(in srgb, var(--nto-accent) 7%, transparent);
-  --nto-bg-end: color-mix(in srgb, var(--nto-accent) 2%, transparent);
-  --nto-shadow: color-mix(in srgb, var(--nto-accent) 12%, transparent);
+  /* Surface colour the card sits on. Override per-app to match
+     your theme background (e.g. `--nto-surface: var(--background)`). */
+  --nto-surface: #ffffff;
+  --nto-border: color-mix(in srgb, var(--nto-accent) 25%, #e5e7eb);
+  --nto-border-soft: color-mix(in srgb, var(--nto-accent) 15%, #f3f4f6);
+  --nto-bg-start: color-mix(in srgb, var(--nto-accent) 4%, var(--nto-surface));
+  --nto-bg-end: color-mix(in srgb, var(--nto-accent) 1%, var(--nto-surface));
+  --nto-shadow: color-mix(in srgb, var(--nto-accent) 20%, transparent);
   --nto-fg: #18181b;
   --nto-muted: #71717a;
   --nto-muted-soft: #a1a1aa;
@@ -27,8 +30,12 @@
 }
 
 .nto-dark {
-  --nto-bg-start: color-mix(in srgb, var(--nto-accent) 6%, transparent);
-  --nto-shadow: color-mix(in srgb, var(--nto-accent) 8%, transparent);
+  --nto-surface: #18181b;
+  --nto-border: color-mix(in srgb, var(--nto-accent) 30%, #27272a);
+  --nto-border-soft: color-mix(in srgb, var(--nto-accent) 15%, #27272a);
+  --nto-bg-start: color-mix(in srgb, var(--nto-accent) 8%, var(--nto-surface));
+  --nto-bg-end: color-mix(in srgb, var(--nto-accent) 3%, var(--nto-surface));
+  --nto-shadow: color-mix(in srgb, var(--nto-accent) 20%, transparent);
   --nto-fg: #fafafa;
   --nto-muted: #a1a1aa;
   --nto-muted-soft: #71717a;
@@ -38,14 +45,12 @@
 }
 
 .nto-card {
-  /* Pin to the viewport. Without these rules the card falls into
-     document flow and on long pages ends up thousands of pixels down.
-     Host apps can override any of these properties via a more
-     specific selector if they want a different layout. */
+  /* Position — `top` and `left` are applied inline by the component,
+     resolved from the active step's `cardAnchor` (or a default bottom-
+     centre placement). Keep the element floating (`position: fixed`)
+     so it does not participate in document flow and has a stable
+     coordinate system regardless of scroll or host layout. */
   position: fixed;
-  bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
   z-index: 55;                    /* above arrow (50) and circles (45) */
   width: min(480px, calc(100vw - 2rem));
   max-width: calc(100vw - 2rem);
@@ -58,6 +63,32 @@
   animation: nto-card-in 180ms ease-out;
   color: var(--nto-fg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Drag handle shown inside the card header when the authoring editor
+   is active. Lets the author reposition the card per step. */
+.nto-card-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 0.25rem;
+  border-radius: 4px;
+  cursor: grab;
+  color: var(--nto-muted);
+  user-select: none;
+  touch-action: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+.nto-card-drag-handle:hover {
+  background: var(--nto-hover-bg);
+  color: var(--nto-fg);
+}
+.nto-card-drag-handle.nto-dragging {
+  cursor: grabbing;
+  background: var(--nto-hover-bg);
+  color: var(--nto-fg);
 }
 
 .nto-header {
@@ -396,8 +427,8 @@
 
 /* ── Keyframes ── */
 @keyframes nto-card-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes nto-arrow-draw {

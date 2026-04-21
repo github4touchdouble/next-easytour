@@ -6,6 +6,62 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-04-21
+
+### Added
+
+- **Per-step card position (`cardAnchor`).** Each step can now carry an
+  optional `cardAnchor: { x, y }` in viewport-percentage units, controlling
+  where the tutorial card appears on screen for that step. When set, the
+  card lands at the author's chosen spot on every display size — the anchor
+  is a viewport fraction, so the card keeps its relative placement on a
+  phone, a laptop, or an ultrawide without any absolute pixels.
+- **Drag-to-place card in the authoring editor.** When `canEdit` is active,
+  the card grows a grip handle in its header. Drag the handle to move the
+  card anywhere on screen; **double-click** the handle to reset to the
+  default bottom-centre position. Drags are staged in the unsaved count
+  and persisted into `cardAnchor` on Save.
+- **`--nto-surface` CSS variable.** Controls the surface colour the card
+  sits on. Defaults: `#ffffff` in `:root`, `#18181b` in `.nto-dark`.
+  Override per app to match your theme background:
+
+  ```css
+  :root { --nto-surface: var(--background); }
+  .dark { --nto-surface: var(--background); }
+  ```
+
+### Fixed
+
+- **Card background is now opaque.** Previously `--nto-bg-start` and
+  `--nto-bg-end` mixed the accent colour with `transparent`, which made
+  the card barely visible against bright app backgrounds. The card now
+  mixes the accent with a solid surface colour (the new `--nto-surface`
+  variable), producing a readable card in both light and dark modes with
+  no host-side workaround. Border and shadow tokens are likewise mixed
+  with solid neutrals (`#e5e7eb` / `#27272a`) rather than `transparent`.
+- **Card position is no longer hard-pinned to the viewport bottom.** In
+  `0.2.2` the stylesheet set `bottom: 1.5rem; left: 50%; transform:
+  translateX(-50%)` directly on `.nto-card`. When an author had taken
+  time to position the card somewhere specific for a step, that position
+  was silently overridden on every render. Positioning is now applied
+  inline by the component using the step's `cardAnchor` (or the default
+  bottom-centre when none is set), so authored placements stick.
+- **Removed `transform: translateY(6px)` from the card fade-in keyframe.**
+  It was fighting the positioning transform on default-placed cards
+  during the first 180 ms of mount, causing a brief horizontal snap on
+  entry. The animation now fades opacity only.
+
+### Migration
+
+- No breaking API changes. Existing tours continue to render bottom-centre
+  because `cardAnchor` is optional and absent in every saved JSON.
+- Any app that relied on the previous semi-transparent card look can
+  reinstate it by setting `--nto-surface: transparent` in their own
+  stylesheet.
+- If you had a host-side CSS override pinning `.nto-card` to the viewport
+  (recommended as a workaround for the `0.2.1` positioning bug), remove
+  it — the library now handles positioning itself.
+
 ## [0.2.2] — 2026-04-21
 
 ### Fixed

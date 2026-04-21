@@ -80,6 +80,20 @@ export interface TutorialStep {
   /** Zero or more annotated ellipses to draw on top of the target. */
   circles?: TutorialCircle[];
   /**
+   * Where the tutorial card sits on screen for this step. Expressed as
+   * viewport percentages (0–100) of both axes, pointing at the card's
+   * top-left corner after any margin. Omit for the default placement
+   * (bottom-centre, 1.5 rem above the viewport bottom).
+   *
+   * Because the anchor is a *viewport fraction*, the card lands in the
+   * same relative spot on a phone, a laptop, or an ultrawide — no
+   * absolute pixels are hard-coded.
+   *
+   * When the authoring editor is active the card grows a drag handle
+   * in its header. Dragging writes to this field on Save.
+   */
+  cardAnchor?: { x: number; y: number };
+  /**
    * Free-form string surfaced through `onAction` when this step activates,
    * so the host can drive custom effects (scrolling, filtering, triggering
    * animations). The library does not interpret the value itself.

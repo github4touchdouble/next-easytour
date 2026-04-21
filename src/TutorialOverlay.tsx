@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronRight, ChevronLeft, X, Copy, Check } from "lucide-react";
+import { ChevronRight, ChevronLeft, X, Copy, Check, GripVertical } from "lucide-react";
 import type {
   ArrowPoint,
   ArrowStyle,
@@ -101,6 +101,13 @@ export function TutorialOverlay({
   const [overrides, setOverrides] = useState<Record<number, ArrowPoint>>({});
   const [styleOverrides, setStyleOverrides] = useState<Record<number, ArrowStyle>>({});
   const [circleOverrides, setCircleOverrides] = useState<Record<number, TutorialCircle[]>>({});
+  /** Per-step card position overrides (viewport %). Keyed by step index
+   *  so edits survive step navigation and appear in the unsaved counter. */
+  const [cardAnchorOverrides, setCardAnchorOverrides] = useState<
+    Record<number, { x: number; y: number }>
+  >({});
+  /** True while the user is dragging the card by its handle. */
+  const [draggingCard, setDraggingCard] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -212,10 +219,11 @@ export function TutorialOverlay({
     };
   }, [syncArrowDOM]);
 
-  // Re-sync when overrides change (from debug panel).
+  // Re-sync when any override changes (from debug panel). cardAnchorOverrides
+  // is included so the arrow origin updates as the author drags the card.
   useEffect(() => {
     syncArrowDOM();
-  }, [overrides, styleOverrides, syncArrowDOM]);
+  }, [overrides, styleOverrides, cardAnchorOverrides, syncArrowDOM]);
 
   // Cleanup target highlights on unmount.
   useEffect(() => {
@@ -301,6 +309,17 @@ export function TutorialOverlay({
       } else {
         delete clean.circles;
       }
+      // Card anchor (viewport %). Persist only if the author has set
+      // one; otherwise omit to fall back to the default placement.
+      const anchor = cardAnchorOverrides[i] ?? (s as TutorialStep).cardAnchor;
+      if (anchor) {
+        clean.cardAnchor = {
+          x: Math.round(anchor.x * 100) / 100,
+          y: Math.round(anchor.y * 100) / 100,
+        };
+      } else {
+        delete clean.cardAnchor;
+      }
       // Normalise Set-valued custom fields to arrays so they round-trip
       // through JSON. Pure passthrough for everything else.
       for (const key of Object.keys(clean)) {
@@ -311,7 +330,7 @@ export function TutorialOverlay({
       }
       return clean;
     });
-  }, [steps, overrides, styleOverrides, circleOverrides]);
+  }, [steps, overrides, styleOverrides, circleOverrides, cardAnchorOverrides]);
 
   const savePositions = useCallback(async () => {
     const output = buildCleanSteps();
@@ -329,6 +348,7 @@ export function TutorialOverlay({
       setOverrides({});
       setStyleOverrides({});
       setCircleOverrides({});
+      setCardAnchorOverrides({});
       onSaved?.();
     } catch {
       // Save failed — surface the JSON via clipboard as a fallback.
@@ -341,6 +361,98 @@ export function TutorialOverlay({
       setTimeout(() => setSaveState("idle"), 3000);
     }
   }, [buildCleanSteps, onSave, onSaved]);
+
+  /**
+   * Resolve the card's screen-space position for the current step.
+   * Precedence: live drag override -> step.cardAnchor -> default
+   * (bottom-centre, 1.5rem above the viewport bottom).
+   *
+   * Returned values are viewport percentages of the TOP-LEFT corner
+   * of the card. The component applies a centring transform when
+   * using the default anchor so the card lands bottom-CENTRE; when
+   * the author has set an explicit anchor the transform is dropped
+   * so the anchor is interpreted literally as the card's top-left.
+   */
+  const resolveCardAnchor = (): {
+    anchor: { x: number; y: number } | null;
+    isDefault: boolean;
+  } => {
+    const override = cardAnchorOverrides[step];
+    if (override) return { anchor: override, isDefault: false };
+    const onStep = (currentStep as TutorialStep | undefined)?.cardAnchor;
+    if (onStep) return { anchor: onStep, isDefault: false };
+    return { anchor: null, isDefault: true };
+  };
+  const { anchor: resolvedAnchor, isDefault: anchorIsDefault } =
+    resolveCardAnchor();
+
+  /** Style applied to the card root. Either places it at a saved anchor
+   *  (top/left in vh/vw) or at the default bottom-centre. */
+  const cardPositionStyle: React.CSSProperties = anchorIsDefault
+    ? { left: "50%", bottom: "1.5rem", transform: "translateX(-50%)" }
+    : {
+        left: `${resolvedAnchor!.x}vw`,
+        top: `${resolvedAnchor!.y}vh`,
+      };
+
+  /**
+   * Mouse-down on the card drag handle. Tracks the pointer until
+   * release and writes the resulting position into
+   * `cardAnchorOverrides[step]` in viewport-percentage units so the
+   * card renders at the same relative spot on different screen sizes.
+   */
+  const onCardHandleMouseDown = (e: React.MouseEvent) => {
+    if (!debug || !cardRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggingCard(true);
+    const cardRect = cardRef.current.getBoundingClientRect();
+    // Offset of mouse from the card's top-left, so the handle stays
+    // under the pointer as the card moves.
+    const offsetX = e.clientX - cardRect.left;
+    const offsetY = e.clientY - cardRect.top;
+    const onMove = (ev: MouseEvent) => {
+      const nextLeftPx = ev.clientX - offsetX;
+      const nextTopPx = ev.clientY - offsetY;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // Clamp so the card cannot be dragged fully off-screen (keep at
+      // least a 24 px sliver visible).
+      const minLeft = -((cardRect.width - 24) / vw) * 100;
+      const maxLeft = ((vw - 24) / vw) * 100;
+      const minTop = 0;
+      const maxTop = ((vh - 24) / vh) * 100;
+      const x = Math.min(
+        maxLeft,
+        Math.max(minLeft, (nextLeftPx / vw) * 100),
+      );
+      const y = Math.min(
+        maxTop,
+        Math.max(minTop, (nextTopPx / vh) * 100),
+      );
+      setCardAnchorOverrides((prev) => ({
+        ...prev,
+        [step]: { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 },
+      }));
+    };
+    const onUp = () => {
+      setDraggingCard(false);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  /** Revert the current step's card to its saved/default position. */
+  const resetCardAnchor = () => {
+    setCardAnchorOverrides((prev) => {
+      if (!(step in prev)) return prev;
+      const next = { ...prev };
+      delete next[step];
+      return next;
+    });
+  };
 
   if (!currentStep) return null;
 
@@ -358,7 +470,8 @@ export function TutorialOverlay({
   const unsaved =
     Object.keys(overrides).length +
     Object.keys(styleOverrides).length +
-    Object.keys(circleOverrides).length;
+    Object.keys(circleOverrides).length +
+    Object.keys(cardAnchorOverrides).length;
 
   const cardClass = `nto-card${isDark ? " nto-dark" : ""}`;
 
@@ -367,10 +480,25 @@ export function TutorialOverlay({
   return (
     <>
       {/* ── Card ── */}
-      <div ref={cardRef} className={cardClass}>
+      <div
+        ref={cardRef}
+        className={cardClass}
+        style={cardPositionStyle}
+      >
         {/* Header */}
         <div className="nto-header">
           <div className="nto-header-left">
+            {debug && (
+              <span
+                className={`nto-card-drag-handle${draggingCard ? " nto-dragging" : ""}`}
+                onMouseDown={onCardHandleMouseDown}
+                onDoubleClick={resetCardAnchor}
+                title="Drag to reposition this step's card. Double-click to reset."
+                aria-label="Drag to reposition tutorial card"
+              >
+                <GripVertical style={{ width: 12, height: 12 }} />
+              </span>
+            )}
             {logoSrc && (
               <ImageComponent
                 src={logoSrc}
