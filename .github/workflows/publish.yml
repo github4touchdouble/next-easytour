@@ -5,7 +5,7 @@ on:
     types: [published]
 
 permissions:
-  id-token: write   # Required for OIDC trusted publishing
+  id-token: write
   contents: read
 
 jobs:
@@ -35,8 +35,23 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npm run build
 
+      - name: Determine dist-tag
+        id: disttag
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *-* ]]; then
+            echo "tag=next" >> "$GITHUB_OUTPUT"
+            echo "Prerelease detected ($VERSION) → publishing under 'next'"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+            echo "Stable release ($VERSION) → publishing under 'latest'"
+          fi
+
       - name: Publish
-        run: npm publish
+        run: npm publish --tag ${{ steps.disttag.outputs.tag }}
