@@ -38,7 +38,18 @@
 }
 
 .nto-card {
-  margin-top: 0.75rem;
+  /* Pin to the viewport. Without these rules the card falls into
+     document flow and on long pages ends up thousands of pixels down.
+     Host apps can override any of these properties via a more
+     specific selector if they want a different layout. */
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;                    /* above arrow (50) and circles (45) */
+  width: min(480px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+
   border-radius: 0.5rem;
   border: 1px solid var(--nto-border);
   overflow: hidden;

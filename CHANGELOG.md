@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-04-21
+
+### Fixed
+
+- **`.nto-card` now pins to the viewport.** The card previously had no
+  positioning in the stylesheet, so on long pages it fell into document
+  flow and ended up thousands of pixels below the fold instead of
+  floating over the current scroll position. It is now `position: fixed;
+  bottom: 1.5rem; left: 50%; transform: translateX(-50%);` with a
+  `z-index` that sits above the library's arrow and circle SVG layers.
+  Host apps can still override any of these properties via a more
+  specific selector if they want a different layout.
+- The card is also width-bounded now (`width: min(480px, calc(100vw - 2rem))`)
+  so it renders correctly on narrow mobile viewports instead of stretching
+  edge-to-edge.
+
 ## [0.2.0] — 2026-04-21
 
 ### Added
