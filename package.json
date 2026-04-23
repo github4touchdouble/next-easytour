@@ -1,11 +1,22 @@
 {
   "name": "next-easytour",
-  "version": "0.3.0-alpha.4",
+  "version": "0.3.0-alpha.5",
   "description": "Generalizable interactive tutorial overlay library for React/Next.js. CSS-selector targeting, step actions, waitFor conditions, auto-scroll, highlight effects, animated transitions — all composable and declarative.",
   "keywords": [
-    "tutorial", "onboarding", "walkthrough", "tour", "guide",
-    "overlay", "nextjs", "react", "svg-arrow", "interactive",
-    "product-tour", "headless", "composable", "animated"
+    "tutorial",
+    "onboarding",
+    "walkthrough",
+    "tour",
+    "guide",
+    "overlay",
+    "nextjs",
+    "react",
+    "svg-arrow",
+    "interactive",
+    "product-tour",
+    "headless",
+    "composable",
+    "animated"
   ],
   "license": "MIT",
   "author": "Jan P Hummel",
@@ -18,7 +29,9 @@
   },
   "homepage": "https://github.com/github4touchdouble/next-easytour#readme",
   "type": "module",
-  "sideEffects": ["./dist/styles.css"],
+  "sideEffects": [
+    "./dist/styles.css"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -32,7 +45,15 @@
     "./tutorial.schema.json": "./tutorial.schema.json",
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src", "tutorial.schema.json", "CHANGELOG.md", "README.md", "AGENTS.md", "LLMS.md"],
+  "files": [
+    "dist",
+    "src",
+    "tutorial.schema.json",
+    "CHANGELOG.md",
+    "README.md",
+    "AGENTS.md",
+    "LLMS.md"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --external react --external react-dom && cp src/styles.css dist/styles.css",
     "dev": "tsup src/index.ts --format esm --dts --external react --external react-dom --watch",
