@@ -1,10 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import {
+  Card,
   Tutorial,
   useTutorial,
   useTutorialTarget,
@@ -294,5 +295,232 @@ describe("useTutorialTarget", () => {
     );
     expect(warningCalls.length).toBe(0);
     warn.mockRestore();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Card — default positioning (0.3.0-alpha.1)
+// ────────────────────────────────────────────────────────────────────────
+//
+// alpha.0 default: bottom-centre for every step.
+// alpha.1: bottom-centre when the step has targets (the arrow supplies
+// the visual link to the UI); viewport-centre when the step has no
+// targets (modal intro-card style).
+
+describe("Card — default positioning (alpha.1)", () => {
+  it("renders a targetless step centred in the viewport", () => {
+    render(
+      <Tutorial
+        steps={[{ id: "a", title: "A" }]}
+        stepId="a"
+        onStepChange={() => {}}
+      >
+        <Card />
+      </Tutorial>,
+    );
+    const card = document.querySelector(".eto-card") as HTMLElement;
+    expect(card.style.position).toBe("fixed");
+    expect(card.style.left).toBe("50%");
+    expect(card.style.top).toBe("50%");
+    expect(card.style.transform).toBe("translate(-50%, -50%)");
+  });
+
+  it("keeps bottom-centre default when the step has a target", () => {
+    function TargetEl() {
+      const ref = useTutorialTarget<HTMLDivElement>("t");
+      return <div ref={ref}>t</div>;
+    }
+    render(
+      <Tutorial
+        steps={[{ id: "a", title: "A", targets: ["t"] }]}
+        stepId="a"
+        onStepChange={() => {}}
+      >
+        <TargetEl />
+        <Card />
+      </Tutorial>,
+    );
+    const card = document.querySelector(".eto-card") as HTMLElement;
+    expect(card.style.position).toBe("fixed");
+    expect(card.style.left).toBe("50%");
+    expect(card.style.bottom).toBe("1.5rem");
+    expect(card.style.transform).toBe("translateX(-50%)");
+    // `top` must NOT be set — would conflict with `bottom`.
+    expect(card.style.top).toBe("");
+  });
+
+  it("respects an explicit cardAnchor over either default", () => {
+    render(
+      <Tutorial
+        steps={[
+          {
+            id: "a",
+            title: "A",
+            cardAnchor: { space: "viewport", x: 10, y: 20 },
+          },
+        ]}
+        stepId="a"
+        onStepChange={() => {}}
+      >
+        <Card />
+      </Tutorial>,
+    );
+    const card = document.querySelector(".eto-card") as HTMLElement;
+    expect(card.style.left).toBe("10vw");
+    expect(card.style.top).toBe("20vh");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Card — branded variant (0.3.0-alpha.1)
+// ────────────────────────────────────────────────────────────────────────
+
+describe("Card — branded variant (alpha.1)", () => {
+  it("renders the branded DOM tree when variant='branded'", () => {
+    render(
+      <Tutorial
+        steps={[{ id: "a", title: "Hello", body: "World" }]}
+        stepId="a"
+        onStepChange={() => {}}
+      >
+        <Card variant="branded" logo="/logo.svg" logoAlt="My product" />
+      </Tutorial>,
+    );
+    const card = document.querySelector(".eto-card--branded");
+    expect(card).not.toBeNull();
+    expect(card!.querySelector(".eto-branded-header")).not.toBeNull();
+    expect(card!.querySelector(".eto-branded-body")).not.toBeNull();
+    expect(card!.querySelector(".eto-branded-title")?.textContent).toBe("Hello");
+    expect(card!.querySelector(".eto-branded-copy")?.textContent).toBe("World");
+    const img = card!.querySelector(".eto-branded-logo") as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute("src")).toBe("/logo.svg");
+    expect(img!.getAttribute("alt")).toBe("My product");
+  });
+
+  it("renders one dot per step with the active one marked", () => {
+    render(
+      <Tutorial
+        steps={[
+          { id: "a", title: "A" },
+          { id: "b", title: "B" },
+          { id: "c", title: "C" },
+        ]}
+        stepId="b"
+        onStepChange={() => {}}
+      >
+        <Card variant="branded" />
+      </Tutorial>,
+    );
+    const dots = document.querySelectorAll(".eto-branded-dot");
+    expect(dots.length).toBe(3);
+    expect(dots[1].classList.contains("eto-active")).toBe(true);
+    expect(dots[0].classList.contains("eto-active")).toBe(false);
+    expect(dots[2].classList.contains("eto-active")).toBe(false);
+  });
+
+  it("falls back to numeric progress for tours > 15 steps", () => {
+    const manySteps: Step[] = Array.from({ length: 20 }, (_, i) => ({
+      id: `s${i}`,
+      title: `Step ${i}`,
+    }));
+    render(
+      <Tutorial steps={manySteps} stepId="s5" onStepChange={() => {}}>
+        <Card variant="branded" />
+      </Tutorial>,
+    );
+    expect(document.querySelectorAll(".eto-branded-dot").length).toBe(0);
+    expect(
+      document.querySelector(".eto-branded-progress-numeric")?.textContent,
+    ).toBe("6 / 20");
+  });
+
+  it("hideProgress suppresses both the dots and the numeric variant", () => {
+    render(
+      <Tutorial
+        steps={[{ id: "a" }]}
+        stepId="a"
+        onStepChange={() => {}}
+      >
+        <Card variant="branded" hideProgress />
+      </Tutorial>,
+    );
+    expect(document.querySelector(".eto-branded-progress")).toBeNull();
+  });
+
+  it("applies the accent override as an inline CSS variable", () => {
+    render(
+      <Tutorial steps={[{ id: "a" }]} stepId="a" onStepChange={() => {}}>
+        <Card variant="branded" accent="#ff00ff" />
+      </Tutorial>,
+    );
+    const card = document.querySelector(".eto-card--branded") as HTMLElement;
+    expect(card.style.getPropertyValue("--eto-branded-accent")).toBe("#ff00ff");
+  });
+
+  it("localises Back / Next / Done / Close via the labels prop", () => {
+    render(
+      <Tutorial
+        steps={[
+          { id: "a", title: "A" },
+          { id: "b", title: "B" },
+        ]}
+        stepId="b"
+        onStepChange={() => {}}
+      >
+        <Card
+          variant="branded"
+          labels={{ back: "Retour", next: "Suivant", done: "Terminé", close: "Fermer" }}
+        />
+      </Tutorial>,
+    );
+    expect(
+      document.querySelector(".eto-branded-btn-back")?.textContent,
+    ).toBe("Retour");
+    // Last step → Done label.
+    expect(
+      document.querySelector(".eto-branded-btn-next")?.textContent,
+    ).toBe("Terminé");
+    expect(
+      document.querySelector(".eto-branded-close")?.getAttribute("aria-label"),
+    ).toBe("Fermer");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Card — Escape blurs focused element before close (0.3.0-alpha.1)
+// ────────────────────────────────────────────────────────────────────────
+//
+// alpha.0: Escape called close() while focus remained on a descendant
+// of the card; once the card unmounted, focus silently landed back on
+// whatever the browser picked as a fallback — often a stale tour-
+// originated button that had re-mounted. alpha.1 blurs the active
+// element before calling close() to prevent the leak.
+
+describe("Card — Escape blur behaviour (alpha.1)", () => {
+  it("blurs the active element before invoking close()", () => {
+    function Inner() {
+      const [stepId, setStepId] = useState<string | null>("a");
+      return (
+        <Tutorial
+          steps={[{ id: "a", title: "A" }]}
+          stepId={stepId}
+          onStepChange={setStepId}
+        >
+          <Card />
+        </Tutorial>
+      );
+    }
+    render(<Inner />);
+
+    const closeButton = document.querySelector(".eto-close") as HTMLButtonElement;
+    closeButton.focus();
+    expect(document.activeElement).toBe(closeButton);
+
+    act(() => {
+      fireEvent.keyDown(window, { key: "Escape" });
+    });
+
+    expect(document.activeElement).not.toBe(closeButton);
   });
 });

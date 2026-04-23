@@ -356,6 +356,25 @@ export type CanEdit =
  * Read-only snapshot of editor state, exposed via `useEditorState()`
  * so hosts can render their own "unsaved changes" indicators or save
  * buttons if they prefer.
+ *
+ * In 0.3.0-alpha.1 this interface also surfaces the override mutators
+ * — but only when `active === true`. The mutator methods are `undefined`
+ * when the editor is inactive, which keeps the hook usable from read-
+ * only callers (status badges, save-button indicators) without a separate
+ * type for each case. Gated access pattern:
+ *
+ *     const editor = useEditorState();
+ *     if (editor?.active) {
+ *       editor.setArrow(stepId, {
+ *         targets: ["foo"],
+ *         to: { space: "target", x: 50, y: 50 },
+ *       });
+ *     }
+ *
+ * The `setArrow` helper is new in alpha.1 — a one-shot way to seed both
+ * the target list and an initial arrow tip on a step that had neither,
+ * so authors can create arrows from scratch without needing to pre-
+ * populate JSON.
  */
 export interface EditorState {
   /** True while the editor is active (authoring allowed). */
@@ -368,4 +387,118 @@ export interface EditorState {
   save: () => Promise<void>;
   /** Discard all pending overrides without saving. */
   revert: () => void;
+
+  // ── Mutators (defined only when `active === true`) ───────────────────
+
+  /**
+   * Override the card's viewport anchor for the given step. Equivalent
+   * to dragging the `<CardHandle>` in `<EditorHandles>`. Undefined when
+   * the editor is inactive.
+   */
+  setCardAnchor?: (stepId: string, a: ViewportAnchor) => void;
+
+  /**
+   * Clear a card-anchor override, reverting to the step's saved
+   * `cardAnchor` (or the default if none was saved). Undefined when
+   * inactive.
+   */
+  clearCardAnchor?: (stepId: string) => void;
+
+  /**
+   * Override the arrow tip for the given step. In alpha.1 this also
+   * creates the arrow annotation if the step didn't have one — the
+   * merge layer handles both cases. Step must have at least one entry
+   * in `targets` for the arrow to render; set both together via
+   * `setArrow` below if the step has no targets yet.
+   */
+  setArrowTip?: (stepId: string, p: TargetPoint) => void;
+
+  /**
+   * Seed a brand-new arrow on a step that didn't have one. Sets both
+   * `targets` (appended if existing — existing entries are preserved)
+   * and `annotations.arrow` with the supplied tip point. Use when
+   * authoring a step from scratch in the browser rather than pre-
+   * populating the JSON.
+   *
+   * @example
+   *   editor.setArrow?.(stepId, {
+   *     targets: ["umap-plot"],
+   *     to: { space: "target", x: 50, y: 50 },
+   *   });
+   */
+  setArrow?: (
+    stepId: string,
+    spec: {
+      targets?: string[];
+      to: TargetPoint;
+      style?: ArrowStyle;
+      label?: string;
+    },
+  ) => void;
+
+  /** Override the circle annotations for the given step (full replace). */
+  setCircles?: (stepId: string, c: Circle[]) => void;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Built-in card variants (alpha.1)
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Layout variant for the built-in `<Card>`.
+ *
+ * - `"default"` renders the no-branding 0.3.0-alpha.0 layout: minimal
+ *   title/body/nav, no gradient, no logo. Suitable for examples,
+ *   tests, and hosts that wire their own styles from scratch.
+ *
+ * - `"branded"` renders a gradient-header card with logo slot, progress
+ *   dots, and an accent-filled Next button — suitable as-is for most
+ *   product tours without a custom render-prop. Accent colour comes
+ *   from `--eto-accent`; hosts can override via the `accent` prop.
+ */
+export type CardVariant = "default" | "branded";
+
+/**
+ * Props recognised by `<Card variant="branded">`. Host supplies a logo
+ * (asset path or React node), optional localised labels for the nav
+ * buttons, and an optional accent override. Everything else comes from
+ * the library's CSS tokens.
+ *
+ * These fields are ignored when `variant === "default"` or when the
+ * host supplies a render-prop child.
+ */
+export interface BrandedCardProps {
+  /**
+   * Logo rendered in the gradient header. A string is treated as an
+   * `<img src>`; a React node is rendered verbatim (use this to supply
+   * a Next.js `<Image>` or an inline SVG).
+   */
+  logo?: string | React.ReactNode;
+
+  /** Alt text for the logo when it's rendered from a string src. */
+  logoAlt?: string;
+
+  /**
+   * Localised labels for the card's navigation controls. Defaults are
+   * English; override for i18n.
+   */
+  labels?: {
+    back?: string;
+    next?: string;
+    done?: string;
+    close?: string;
+  };
+
+  /**
+   * Optional CSS colour override for the accent gradient. Takes any
+   * valid CSS colour; the gradient darkens the supplied colour by 25%
+   * on its far end. Defaults to `var(--eto-accent)`.
+   */
+  accent?: string;
+
+  /**
+   * Hide the progress dots row. Useful for 1-step "tip" tours where
+   * the dots add visual noise.
+   */
+  hideProgress?: boolean;
 }

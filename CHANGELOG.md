@@ -6,6 +6,110 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0-alpha.1] — 2026-04-23
+
+Visibility and authoring fixes on the 0.3.0 alpha series. No breaking
+surface changes for consumers who only use `<Tutorial>` + `<Card>` +
+`<Arrow>`; additive API for authoring-heavy consumers.
+
+### Fixed
+
+- **Editor handles were invisible against light backgrounds.** The
+  `.eto-editor-card-handle` was a 60 %-opacity accent-tinted blob that
+  vanished on near-white surfaces. Both handles now ship as solid
+  filled controls with visible borders, a grip-dots SVG icon on the
+  card handle, and a larger hit target (28×28 card, 18×18 tip).
+- **`mergeOverrides` silently dropped arrow-tip overrides on steps
+  without an existing arrow.** The merge guard `if (arrowTipOverride
+  && annotations.arrow)` prevented authors from adding a tip to a
+  target-only step. Now the merge constructs a minimal arrow when
+  needed (`annotations.arrow = { to: override }`), so drag-to-create
+  works through the editor's normal override channel.
+- **Targetless steps lost their connection to the UI.** A step with no
+  `cardAnchor` and no `targets` previously rendered bottom-centre with
+  no visual link to anything. The default for targetless steps is now
+  centred in the viewport so the card reads as a modal introduction
+  rather than a detached footer note. Steps that *do* have a target
+  keep the bottom-centre default, since the arrow supplies the
+  connection.
+
+### Added
+
+- **`<Card variant="branded">`** — an opt-in default card with a
+  gradient accent header, logo slot, progress dots, and a primary
+  accent Next button. Matches the visual weight of 0.2.x's built-in
+  card without forcing every host to write their own render-prop
+  from scratch.
+
+  ```tsx
+  <Card
+    variant="branded"
+    logo="/my-logo.svg"
+    logoAlt="My product"
+    labels={{ back: "Back", next: "Next", done: "Finish", close: "Close" }}
+  />
+  ```
+
+- **`useEditorState()` exposes mutators when the editor is active.**
+  Authoring UIs can now call `setCardAnchor`, `setArrowTip`,
+  `setArrow` (new — seeds both the target and the tip on a step
+  with no arrow), and `setCircles` directly, without having to write
+  to base steps behind the editor's back. Mutators are `undefined`
+  when the editor is inactive, so read-only callers keep type-safety.
+
+  ```tsx
+  const editor = useEditorState();
+  if (editor?.active) {
+    editor.setArrow(stepId, { targets: ["umap-plot"], to: { space: "target", x: 50, y: 50 } });
+  }
+  ```
+
+- **Drag-to-create arrow handle.** When a step has a registered target
+  but no arrow annotation, `<EditorHandles>` now renders a small
+  "create arrow" handle pinned to the card's right edge. Dragging it
+  into the viewport seeds the arrow with an initial `TargetPoint`; the
+  existing `<ArrowTipHandle>` takes over once the drag starts.
+  Visually distinct from the tip handle (dashed border) so authors
+  can tell creation from re-aim.
+
+- **CSS tokens for handle styling.** `--eto-handle-bg`,
+  `--eto-handle-border`, `--eto-handle-size`, `--eto-handle-radius`,
+  `--eto-tip-size`. Hosts that want different handle visuals can
+  override these without wholesale class overrides.
+
+- **`CardVariant` type, `BrandedCardProps` type** exported for
+  consumers building on top of the branded variant.
+
+### Changed
+
+- **Default `cardAnchor` for targetless steps** is now viewport-centred
+  (`{ space: "viewport", x: 50, y: 50 }` with transform centring).
+  Steps with targets still default bottom-centre.
+- **Keyboard `Escape` close** now blurs the currently-focused element
+  first, so focus doesn't silently leak back to a tour-originated button
+  after the tour closes.
+
+### Deprecated
+
+- The internal-only `EditorInternalApi` export is kept for
+  `<EditorHandles>` but is marked `@deprecated` in JSDoc for external
+  consumers. Use `useEditorState()` which now exposes the same
+  mutators when `active`.
+
+### Migration
+
+Existing 0.3.0-alpha.0 consumers:
+
+- If you reach into the library's styles to override
+  `.eto-editor-card-handle`, revisit — the default is now solid and
+  grip-iconed, so your override may be redundant.
+- If you previously used `useEditorState()` and got back just
+  `{ active, unsavedCount, saveStatus, save, revert }`, the mutators
+  are now present when `active === true`. Purely additive; no code
+  changes needed.
+- `<Card>` without `children` still renders the no-branding default.
+  To get the new branded layout explicitly, pass `variant="branded"`.
+
 ## [0.3.0-alpha.0] — 2026-04-21
 
 This is a **rewrite**, not a patch. The library shifts from a single

@@ -1,6 +1,6 @@
 {
   "name": "next-easytour",
-  "version": "0.3.0-alpha.0",
+  "version": "0.3.0-alpha.1",
   "description": "Headless, composable tutorial overlay for React and Next.js. Compose Tutorial + Card + Arrow + Spotlight + Circles primitives with full branding control, drag-to-author editor, and typed coordinate systems.",
   "keywords": [
     "tutorial",

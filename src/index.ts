@@ -142,6 +142,9 @@ export type {
   CanEdit,
   EditorState,
   SaveHandler,
+  // Card variants (0.3.0-alpha.1)
+  CardVariant,
+  BrandedCardProps,
 } from "./types";
 
 // ────────────────────────────────────────────────────────────────────────

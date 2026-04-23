@@ -41,6 +41,8 @@ import {
   computeSnapshot,
   validateSteps,
 } from "./state";
+import { CardRectContext } from "../overlay/Arrow";
+import type { Rect } from "./useTargetRect";
 
 // ────────────────────────────────────────────────────────────────────────
 // Contexts
@@ -336,10 +338,26 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
     [snapshot, next, prev, goto, close],
   );
 
+  // ── Card rect store ───────────────────────────────────────────────────
+  // `<Card>` writes its live bounding rect here; `<Arrow>` and
+  // `<EditorHandles>` read it. The Provider must live at the Tutorial
+  // level — not at Card level — because EditorHandles is a *sibling*
+  // of Card in the composed JSX tree, so a Card-scoped Provider would
+  // be unreachable. The store shape is `{ rect, setRect }`; the public
+  // `useCardRect()` hook returns only the rect, so consumer code is
+  // unchanged across this refactor.
+  const [cardRect, setCardRect] = useState<Rect | null>(null);
+  const cardRectStore = useMemo(
+    () => ({ rect: cardRect, setRect: setCardRect }),
+    [cardRect],
+  );
+
   return (
     <TargetRegistryContext.Provider value={registry}>
       <TutorialContext.Provider value={api as TutorialApi<unknown>}>
-        {children}
+        <CardRectContext.Provider value={cardRectStore}>
+          {children}
+        </CardRectContext.Provider>
       </TutorialContext.Provider>
     </TargetRegistryContext.Provider>
   );

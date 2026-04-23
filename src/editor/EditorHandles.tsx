@@ -13,21 +13,20 @@
  *      to re-aim the arrow. Writes a `TargetPoint` override to the
  *      current step.
  *
- * Mounted inside `<Tutorial>` as a sibling of `<Card>` / `<Arrow>`.
- * Renders nothing when the editor is inactive (`canEdit === false`).
- * Both handles are pointer-events-enabled rectangles overlaid on
- * positioned SVG; they don't interfere with the targets themselves.
+ *   3. **Create-arrow handle** (new in 0.3.0-alpha.1) — rendered on
+ *      the card's right edge when the active step has at least one
+ *      registered target but no `annotations.arrow`. Mouse-down
+ *      seeds the arrow via `setArrow`; subsequent mouse-move updates
+ *      the tip via `setArrowTip` so the arrow follows the cursor
+ *      into place. Visually distinct (dashed border + plus icon) so
+ *      authors can tell creation from re-aim at a glance.
  *
- *     <Tutorial {...}>
- *       <Spotlight />
- *       <Arrow />
- *       <Card />
- *       <EditorHandles />    ← opt-in
- *     </Tutorial>
+ * Mounted inside `<Tutorial>` as a sibling of `<Card>` / `<Arrow>`.
+ * Renders nothing when the editor is inactive.
  */
 
 import * as React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTutorial } from "../core/Tutorial";
 import { useTargetRect } from "../core/useTargetRect";
 import { useCardRect } from "../overlay/Arrow";
@@ -36,6 +35,7 @@ import {
   clampViewportAnchor,
   pxToTargetPoint,
   pxToViewportAnchor,
+  targetPoint,
   targetPointToPx,
 } from "../coords";
 
@@ -46,10 +46,13 @@ export function EditorHandles() {
   // Renders nothing when not active or when there's no step.
   if (!editor || !editor.active || !step) return null;
 
+  const hasArrow = !!step.annotations?.arrow;
+  const hasTarget = (step.targets?.length ?? 0) > 0;
+
   return (
     <>
       <CardHandle />
-      <ArrowTipHandle />
+      {hasArrow ? <ArrowTipHandle /> : hasTarget ? <CreateArrowHandle /> : null}
     </>
   );
 }
@@ -132,10 +135,11 @@ function CardHandle() {
       className={`eto-editor-card-handle${dragging ? " eto-dragging" : ""}`}
       style={{
         position: "fixed",
+        // Align with the card's top-left so the handle sits visibly
+        // on the corner. Small negative offset so the handle overlaps
+        // the card chrome rather than hovering disconnected.
         left: cardRect.left - 4,
         top: cardRect.top - 4,
-        width: 24,
-        height: 24,
       }}
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
@@ -154,7 +158,8 @@ function CardHandle() {
  * `TargetPoint` override.
  *
  * Renders nothing when the current step has no arrow or no primary
- * target registered.
+ * target registered — in the latter case `<CreateArrowHandle>` is
+ * rendered instead by the parent.
  */
 function ArrowTipHandle() {
   const editor = useEditor()!;
@@ -165,8 +170,6 @@ function ArrowTipHandle() {
   const targetId = step?.targets?.[0] ?? null;
   const targetRect = useTargetRect(targetId);
 
-  // Keep target rect in a ref so drag handlers see the latest without
-  // re-binding.
   const targetRectRef = useRef(targetRect);
   targetRectRef.current = targetRect;
 
@@ -210,13 +213,97 @@ function ArrowTipHandle() {
       className={`eto-editor-tip-handle${dragging ? " eto-dragging" : ""}`}
       style={{
         position: "fixed",
-        left: tip.x - 8,
-        top: tip.y - 8,
-        width: 16,
-        height: 16,
+        left: tip.x - 9,  // tip-size / 2
+        top: tip.y - 9,
       }}
       onMouseDown={onMouseDown}
       title="Drag to move the arrow tip"
+    />
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Create-arrow handle (alpha.1)
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Rendered on the card's right-centre edge when the current step has a
+ * registered target but no arrow annotation. Mouse-down seeds a new
+ * arrow via `setArrow` pointing at the target's centre, then tracks
+ * the cursor via `setArrowTip` so the tip follows the drag. On release
+ * the handle vanishes (the step now has an arrow) and `<ArrowTipHandle>`
+ * takes over for subsequent re-aims.
+ *
+ * The initial tip is placed at the cursor's percentage inside the
+ * target rect at drag start, so the very first drop point matches what
+ * the author clicked. If the author clicks *outside* the target rect,
+ * we clamp into the rect so the percentage is valid.
+ */
+function CreateArrowHandle() {
+  const editor = useEditor()!;
+  const { step } = useTutorial();
+  const cardRect = useCardRect();
+  const targetId = step?.targets?.[0] ?? null;
+  const targetRect = useTargetRect(targetId);
+  const [dragging, setDragging] = useState(false);
+
+  const targetRectRef = useRef(targetRect);
+  targetRectRef.current = targetRect;
+
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (!step) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setDragging(true);
+
+      // Seed immediately so the Arrow component starts rendering at
+      // the target centre. Subsequent mousemoves refine the tip to
+      // follow the cursor.
+      editor.setArrow(step.id, {
+        to: targetPoint(50, 50),
+      });
+
+      const onMove = (ev: MouseEvent) => {
+        const rect = targetRectRef.current;
+        if (!rect) return;
+        const p = pxToTargetPoint(
+          { x: ev.clientX, y: ev.clientY },
+          { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+        );
+        if (p) editor.setArrowTip(step.id, p);
+      };
+      const onUp = () => {
+        setDragging(false);
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [editor, step],
+  );
+
+  if (!cardRect) return null;
+
+  // Position on the card's right-centre edge. The create-handle dimension
+  // is 20×20; centre it vertically on the card height.
+  const size = 20;
+  const left = cardRect.left + cardRect.width - size / 2;
+  const top = cardRect.top + cardRect.height / 2 - size / 2;
+
+  return (
+    <div
+      role="button"
+      aria-label="Drag to create an arrow pointing at the target"
+      className={`eto-editor-create-arrow${dragging ? " eto-dragging" : ""}`}
+      style={{
+        position: "fixed",
+        left,
+        top,
+      }}
+      onMouseDown={onMouseDown}
+      title="Drag onto the target to create an arrow"
     />
   );
 }

@@ -39,14 +39,41 @@ import type { Rect } from "../core/useTargetRect";
 // ────────────────────────────────────────────────────────────────────────
 
 /**
- * Published by `<Card>` as it mounts and whenever it moves/resizes.
- * Arrow consumes this; Spotlight doesn't need it.
+ * Store for the card's current bounding rect. The Provider is mounted
+ * by `<Tutorial>` — not by `<Card>` — because readers like
+ * `<EditorHandles>` are siblings of `<Card>` in the composed JSX tree
+ * and therefore cannot consume a context scoped to Card's own subtree.
+ *
+ * Card writes its rect via `setRect` on mount / resize / scroll; any
+ * descendant of `<Tutorial>` (Arrow, EditorHandles, custom overlays)
+ * reads it via `useCardRect()`.
+ *
+ * Shape change in 0.3.0-alpha.1-fix: the context value is now
+ * `{ rect, setRect }` instead of a bare `Rect | null`. `useCardRect()`
+ * still returns `Rect | null` so existing callers don't need to
+ * update; the setter is consumed only by Card internally via
+ * `useCardRectSetter()`.
  */
-export const CardRectContext = createContext<Rect | null>(null);
+interface CardRectStore {
+  rect: Rect | null;
+  setRect: (r: Rect | null) => void;
+}
 
-/** Hook consumed by the Arrow and (optionally) by user code. */
+/** @internal — Provider mounted by `<Tutorial>`, not by `<Card>`. */
+export const CardRectContext = createContext<CardRectStore | null>(null);
+
+/** Hook consumed by `<Arrow>`, `<EditorHandles>`, and any host code
+ *  that wants to know where the card currently sits. Returns `null`
+ *  when the tour is closed or the card has not yet measured itself. */
 export function useCardRect(): Rect | null {
-  return useContext(CardRectContext);
+  const store = useContext(CardRectContext);
+  return store ? store.rect : null;
+}
+
+/** @internal — Used by `<Card>` to publish its rect on each tick. */
+export function useCardRectSetter(): ((r: Rect | null) => void) | null {
+  const store = useContext(CardRectContext);
+  return store ? store.setRect : null;
 }
 
 // ────────────────────────────────────────────────────────────────────────

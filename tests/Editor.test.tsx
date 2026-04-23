@@ -9,7 +9,9 @@ import {
   Tutorial,
   useEditorState,
   useTutorial,
+  targetPoint,
   type Step,
+  type TargetPoint,
 } from "../src";
 
 // ────────────────────────────────────────────────────────────────────────
@@ -179,5 +181,262 @@ describe("Editor — merging", () => {
     expect(captured[0]?.id).toBe("a");
     expect(captured[0]?.title).toBe("A");
     expect(captured[0]?.body).toBe("body A");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// useEditorState — mutator exposure (0.3.0-alpha.1)
+// ────────────────────────────────────────────────────────────────────────
+//
+// alpha.0 returned only the read-only fields (active, unsavedCount,
+// saveStatus, save, revert). alpha.1 additionally exposes the override
+// mutators WHEN `active === true`, and leaves them `undefined` when
+// inactive so the hook remains safe to call from read-only contexts.
+
+describe("Editor — useEditorState mutator exposure (alpha.1)", () => {
+  it("exposes mutators when the editor is active", () => {
+    let shape: ReturnType<typeof useEditorState> = null;
+    function Probe() {
+      shape = useEditorState();
+      return null;
+    }
+    render(
+      <Editor steps={baseSteps} canEdit={true}>
+        {() => (
+          <Tutorial steps={baseSteps} stepId={null} onStepChange={() => {}}>
+            <Probe />
+          </Tutorial>
+        )}
+      </Editor>,
+    );
+    expect(shape).not.toBeNull();
+    expect(shape!.active).toBe(true);
+    expect(typeof shape!.setCardAnchor).toBe("function");
+    expect(typeof shape!.clearCardAnchor).toBe("function");
+    expect(typeof shape!.setArrowTip).toBe("function");
+    expect(typeof shape!.setArrow).toBe("function");
+    expect(typeof shape!.setCircles).toBe("function");
+  });
+
+  it("omits mutators when the editor is inactive", () => {
+    let shape: ReturnType<typeof useEditorState> = null;
+    function Probe() {
+      shape = useEditorState();
+      return null;
+    }
+    render(
+      <Editor steps={baseSteps} canEdit={false}>
+        {() => (
+          <Tutorial steps={baseSteps} stepId={null} onStepChange={() => {}}>
+            <Probe />
+          </Tutorial>
+        )}
+      </Editor>,
+    );
+    expect(shape).not.toBeNull();
+    expect(shape!.active).toBe(false);
+    // Mutators must be undefined so read-only callers can rely on
+    // `editor.setArrow?.(...)` chaining to no-op outside admin mode.
+    expect(shape!.setCardAnchor).toBeUndefined();
+    expect(shape!.clearCardAnchor).toBeUndefined();
+    expect(shape!.setArrowTip).toBeUndefined();
+    expect(shape!.setArrow).toBeUndefined();
+    expect(shape!.setCircles).toBeUndefined();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Editor.setArrow — seeds targets + annotations.arrow atomically (alpha.1)
+// ────────────────────────────────────────────────────────────────────────
+
+describe("Editor — setArrow (alpha.1)", () => {
+  /**
+   * Shared helper: renders an <Editor> in active mode around a step
+   * list and captures the merged step list on every render so tests
+   * can assert the post-override shape.
+   */
+  function renderWithCapture(initialSteps: Step[]) {
+    const captured: Step<unknown>[] = [];
+    let api: ReturnType<typeof useEditorState> = null;
+
+    function Capturer() {
+      const { step } = useTutorial();
+      if (step) captured.push(step);
+      return null;
+    }
+    function Grab() {
+      api = useEditorState();
+      return null;
+    }
+
+    render(
+      <Editor steps={initialSteps} canEdit={true}>
+        {({ steps }) => (
+          <Tutorial steps={steps} stepId="a" onStepChange={() => {}}>
+            <Grab />
+            <Capturer />
+          </Tutorial>
+        )}
+      </Editor>,
+    );
+
+    return { captured, getApi: () => api! };
+  }
+
+  it("seeds both targets and annotations.arrow on a step that had neither", () => {
+    const { captured, getApi } = renderWithCapture([
+      { id: "a", title: "A" },
+    ]);
+
+    act(() => {
+      getApi().setArrow!("a", {
+        targets: ["umap-plot"],
+        to: { space: "target", x: 50, y: 50 },
+      });
+    });
+
+    const last = captured[captured.length - 1];
+    expect(last.id).toBe("a");
+    expect(last.targets).toEqual(["umap-plot"]);
+    expect(last.annotations?.arrow?.to).toEqual({
+      space: "target",
+      x: 50,
+      y: 50,
+    });
+  });
+
+  it("appends new targets without duplicating existing ones", () => {
+    const { captured, getApi } = renderWithCapture([
+      { id: "a", title: "A", targets: ["existing"] },
+    ]);
+
+    act(() => {
+      getApi().setArrow!("a", {
+        targets: ["existing", "new-target"],
+        to: { space: "target", x: 25, y: 75 },
+      });
+    });
+
+    const last = captured[captured.length - 1];
+    expect(last.targets).toEqual(["existing", "new-target"]);
+  });
+
+  it("carries style and label into the constructed arrow", () => {
+    const { captured, getApi } = renderWithCapture([
+      { id: "a", title: "A" },
+    ]);
+
+    act(() => {
+      getApi().setArrow!("a", {
+        targets: ["t"],
+        to: targetPoint(10, 20),
+        style: { bend: 50, dashed: true },
+        label: "click me",
+      });
+    });
+
+    const last = captured[captured.length - 1];
+    expect(last.annotations?.arrow?.style).toEqual({ bend: 50, dashed: true });
+    expect(last.annotations?.arrow?.label).toBe("click me");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// mergeOverrides — arrow-tip on a step without a prior arrow (alpha.1)
+// ────────────────────────────────────────────────────────────────────────
+//
+// alpha.0: `if (arrowTipOverride && annotations.arrow)` meant an arrow-
+// tip override on a step without an existing arrow was silently dropped.
+// alpha.1: the merge constructs a minimal arrow annotation when the
+// override exists but the step had none, so drag-to-create works
+// through the editor's normal override channel.
+
+describe("Editor — mergeOverrides arrow-from-nothing (alpha.1)", () => {
+  it("constructs an arrow annotation when arrow-tip applied to a step with targets but no arrow", () => {
+    const captured: Step<unknown>[] = [];
+    let api: ReturnType<typeof useEditorState> = null;
+    function Capturer() {
+      const { step } = useTutorial();
+      if (step) captured.push(step);
+      return null;
+    }
+    function Grab() {
+      api = useEditorState();
+      return null;
+    }
+    const stepsWithTargetOnly: Step[] = [
+      { id: "a", title: "A", targets: ["t"] },
+    ];
+    render(
+      <Editor steps={stepsWithTargetOnly} canEdit={true}>
+        {({ steps }) => (
+          <Tutorial steps={steps} stepId="a" onStepChange={() => {}}>
+            <Grab />
+            <Capturer />
+          </Tutorial>
+        )}
+      </Editor>,
+    );
+
+    const tip: TargetPoint = { space: "target", x: 75, y: 25 };
+    act(() => {
+      api!.setArrowTip!("a", tip);
+    });
+
+    const last = captured[captured.length - 1];
+    expect(last.annotations?.arrow).toBeDefined();
+    expect(last.annotations?.arrow?.to).toEqual(tip);
+  });
+
+  it("updates existing arrow's tip without clobbering style or label", () => {
+    const captured: Step<unknown>[] = [];
+    let api: ReturnType<typeof useEditorState> = null;
+    function Capturer() {
+      const { step } = useTutorial();
+      if (step) captured.push(step);
+      return null;
+    }
+    function Grab() {
+      api = useEditorState();
+      return null;
+    }
+    const stepsWithArrow: Step[] = [
+      {
+        id: "a",
+        title: "A",
+        targets: ["t"],
+        annotations: {
+          arrow: {
+            to: { space: "target", x: 50, y: 50 },
+            style: { bend: 30 },
+            label: "keep me",
+          },
+        },
+      },
+    ];
+    render(
+      <Editor steps={stepsWithArrow} canEdit={true}>
+        {({ steps }) => (
+          <Tutorial steps={steps} stepId="a" onStepChange={() => {}}>
+            <Grab />
+            <Capturer />
+          </Tutorial>
+        )}
+      </Editor>,
+    );
+
+    act(() => {
+      api!.setArrowTip!("a", { space: "target", x: 10, y: 10 });
+    });
+
+    const last = captured[captured.length - 1];
+    // Tip is the override, style and label survive.
+    expect(last.annotations?.arrow?.to).toEqual({
+      space: "target",
+      x: 10,
+      y: 10,
+    });
+    expect(last.annotations?.arrow?.style).toEqual({ bend: 30 });
+    expect(last.annotations?.arrow?.label).toBe("keep me");
   });
 });
