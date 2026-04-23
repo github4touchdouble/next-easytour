@@ -154,6 +154,10 @@ export interface TutorialProps<Meta = never> {
   canAdvance?: (step: Step<Meta>, index: number) => boolean;
   transition?: TransitionConfig;
   scrollIntoView?: boolean | ScrollIntoViewOptions;
+
+  /** Default card position for all steps. Steps with their own `cardAnchor` override this. */
+  defaultCardAnchor?: ViewportAnchor;
+
   children: React.ReactNode;
 }
 
@@ -173,6 +177,8 @@ export interface TutorialApi<Meta = never> {
   goto: (id: string) => void;
   close: () => void;
   getTargetElement: (targetIdOrSelector?: string) => Element | null;
+  /** Default card position for all steps. */
+  defaultCardAnchor?: ViewportAnchor;
 }
 
 // ── Editor types ────────────────────────────────────────────────────────

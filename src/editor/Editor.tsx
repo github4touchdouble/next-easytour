@@ -269,6 +269,8 @@ function mergeOverrides<Meta>(
 export interface EditorInternalApi {
   active: boolean;
   overrides: Overrides;
+  /** The merged step list (base + overrides). */
+  steps: Step<unknown>[];
   setCardAnchor: (stepId: string, a: ViewportAnchor) => void;
   clearCardAnchor: (stepId: string) => void;
   setArrowTip: (stepId: string, p: TargetPoint) => void;
@@ -485,6 +487,7 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
     () => ({
       active,
       overrides,
+      steps: mergedSteps as Step<unknown>[],
       setCardAnchor,
       clearCardAnchor,
       setArrowTip,
@@ -497,6 +500,7 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
     [
       active,
       overrides,
+      mergedSteps,
       setCardAnchor,
       clearCardAnchor,
       setArrowTip,

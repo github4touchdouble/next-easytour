@@ -18,7 +18,7 @@ export interface SnapshotInput<Meta> {
 
 export function computeSnapshot<Meta>(
   input: SnapshotInput<Meta>,
-): Omit<TutorialApi<Meta>, "next" | "prev" | "goto" | "close" | "getTargetElement"> {
+): Omit<TutorialApi<Meta>, "next" | "prev" | "goto" | "close" | "getTargetElement" | "defaultCardAnchor"> {
   const { steps, stepId, transitioning, canAdvance, isWaiting } = input;
 
   const total = steps.length;

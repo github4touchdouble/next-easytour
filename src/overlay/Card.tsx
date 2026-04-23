@@ -68,7 +68,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   const api = useTutorial<Meta>();
   const {
     step, index, total, isFirst, isLast, canAdvance, isWaiting,
-    next, prev, close,
+    next, prev, close, defaultCardAnchor,
   } = api;
 
   const baseId = useId();
@@ -154,11 +154,13 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
 
   // ── Positioning style ────────────────────────────────────────────────
   const positionStyle = useMemo<React.CSSProperties>(() => {
-    if (step?.cardAnchor) {
+    // Priority: step.cardAnchor > defaultCardAnchor > computed default
+    const anchor = step?.cardAnchor ?? defaultCardAnchor;
+    if (anchor) {
       return {
         position: "fixed",
-        left: `${step.cardAnchor.x}vw`,
-        top: `${step.cardAnchor.y}vh`,
+        left: `${anchor.x}vw`,
+        top: `${anchor.y}vh`,
       };
     }
     const hasTargets = (step?.targets?.length ?? 0) > 0 || !!step?.selector;
@@ -176,7 +178,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
       bottom: "1.5rem",
       transform: "translateX(-50%)",
     };
-  }, [step?.cardAnchor, step?.targets, step?.selector]);
+  }, [step?.cardAnchor, step?.targets, step?.selector, defaultCardAnchor]);
 
   if (!step) return null;
 
@@ -189,8 +191,12 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
     : null;
 
   const isBranded = variant === "branded" && !children;
+  // When render-prop mode is active, the wrapper is just a positioning
+  // container — the host's render-prop provides all visual styling.
+  // .eto-card--custom strips border/shadow/bg from the wrapper.
   const className = [
     "eto-card",
+    isRenderProp ? "eto-card--custom" : "",
     isBranded ? "eto-card--branded" : "",
     animClass,
   ].filter(Boolean).join(" ");

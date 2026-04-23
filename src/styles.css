@@ -87,6 +87,18 @@
 
 /* ── Card entrance animations ── */
 
+/* Custom card (render-prop mode): the wrapper is just a positioning
+   container. All visual styling comes from the host's render-prop. */
+.eto-card--custom {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  width: auto !important;
+  max-width: none !important;
+  border-radius: 0 !important;
+}
+
 .eto-card--fade {
   animation: eto-card-fade 200ms ease-out;
 }
@@ -586,4 +598,208 @@
 @keyframes eto-pulse-subtle {
   0%, 100% { opacity: 0.6; }
   50% { opacity: 0.35; }
+}
+
+/* ── EditorPanel (alpha.6) ────────────────────────────────────────────
+   PowerPoint-style sidebar for managing tutorial steps. */
+
+.eto-editor-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 260px;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  background: var(--eto-surface);
+  border-left: 1px solid var(--eto-border);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.06);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  color: var(--eto-fg);
+  transition: width 200ms ease;
+  overflow: hidden;
+}
+.eto-editor-panel[data-collapsed] {
+  width: 40px;
+}
+
+.eto-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--eto-border-soft);
+  flex-shrink: 0;
+}
+.eto-panel-toggle {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: var(--eto-muted);
+  flex-shrink: 0;
+}
+.eto-panel-toggle:hover {
+  background: var(--eto-hover-bg);
+  color: var(--eto-fg);
+}
+.eto-panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--eto-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.eto-panel-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--eto-muted-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.eto-panel-steps {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.eto-panel-step {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 80ms ease;
+  border-left: 3px solid transparent;
+}
+.eto-panel-step:hover {
+  background: var(--eto-hover-bg);
+}
+.eto-panel-step--active {
+  background: color-mix(in srgb, var(--eto-accent) 8%, transparent);
+  border-left-color: var(--eto-accent);
+}
+.eto-panel-step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--eto-hover-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--eto-muted);
+  flex-shrink: 0;
+}
+.eto-panel-step--active .eto-panel-step-num {
+  background: var(--eto-accent);
+  color: #fff;
+}
+.eto-panel-step-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.eto-panel-step-badges {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.eto-panel-badge {
+  color: var(--eto-muted-soft);
+  display: inline-flex;
+}
+.eto-panel-step--active .eto-panel-badge {
+  color: var(--eto-accent);
+}
+
+.eto-panel-info {
+  padding: 8px 10px;
+  border-top: 1px solid var(--eto-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.eto-panel-info-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--eto-muted-soft);
+  margin-bottom: 2px;
+}
+.eto-panel-info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.eto-panel-info-key {
+  font-size: 10px;
+  color: var(--eto-muted);
+  flex-shrink: 0;
+  min-width: 55px;
+}
+.eto-panel-info-val {
+  font-size: 10px;
+  color: var(--eto-fg);
+  font-family: ui-monospace, "SF Mono", monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eto-panel-footer {
+  padding: 8px 10px;
+  border-top: 1px solid var(--eto-border-soft);
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.eto-panel-btn {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--eto-muted);
+  background: var(--eto-hover-bg);
+  transition: background 100ms ease, color 100ms ease;
+  white-space: nowrap;
+}
+.eto-panel-btn:hover {
+  background: color-mix(in srgb, var(--eto-accent) 10%, transparent);
+  color: var(--eto-fg);
+}
+.eto-panel-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.eto-panel-btn--save {
+  background: var(--eto-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.eto-panel-btn--save:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--eto-accent) 85%, #000);
+}
+.eto-panel-btn--saved {
+  background: #22c55e;
 }

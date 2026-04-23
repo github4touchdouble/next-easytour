@@ -93,6 +93,7 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
     canAdvance: canAdvanceProp,
     transition: globalTransition,
     scrollIntoView: globalScrollIntoView,
+    defaultCardAnchor,
     children,
   } = props;
 
@@ -393,8 +394,9 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
       goto,
       close,
       getTargetElement,
+      defaultCardAnchor,
     }),
-    [snapshot, next, prev, goto, close, getTargetElement],
+    [snapshot, next, prev, goto, close, getTargetElement, defaultCardAnchor],
   );
 
   // ── Card rect store ───────────────────────────────────────────────────

@@ -219,9 +219,12 @@ function EditorToolbar() {
   const saving = editor.saveStatus === "saving";
   const saved = editor.saveStatus === "saved";
 
-  // Position toolbar below the card
+  // Position toolbar ABOVE the card. If card is near the top of
+  // the viewport (<44px), flip below instead.
   const toolbarLeft = cardRect.left;
-  const toolbarTop = cardRect.top + cardRect.height + 6;
+  const above = cardRect.top - 40;
+  const below = cardRect.top + cardRect.height + 6;
+  const toolbarTop = above >= 4 ? above : below;
 
   return (
     <div
