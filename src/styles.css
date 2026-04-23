@@ -1,81 +1,58 @@
 /*
- * next-easytour 0.3.0 — default stylesheet.
+ * next-easytour 0.3.0-alpha.3 — default stylesheet.
  *
  * Import once at your app's root:
- *
  *     import "next-easytour/styles.css";
  *
- * Every class is prefixed `eto-` and every custom property `--eto-`
- * to avoid collisions with host app styles. The colour system is
- * driven by a single accent variable (`--eto-accent`); overriding
- * it is the normal way to brand the overlay.
- *
- * Consumers that prefer to bring their own styling entirely can skip
- * this import — the component class names are stable and documented,
- * so targeting them from host CSS works without opt-in on the
- * library side.
+ * Alpha.3 additions:
+ *   - Card entrance animations (fade, fade-slide, scale)
+ *   - Arrow draw-on animation
+ *   - Highlight ring + pulse effect
+ *   - Waiting state indicator on buttons
+ *   - Tooltip component styles
+ *   - Spotlight transition
  */
 
 /* ── Design tokens ── */
 
 :root {
-  /* Accent — single source of truth. Override per-app:
-       :root { --eto-accent: #262262; }   // MuTopia navy
-   */
   --eto-accent: #4285F4;
-
-  /* Surface the card sits on. Override to your app background so the
-     card visually belongs to the page rather than floating detached.
-       :root { --eto-surface: var(--background); }
-   */
   --eto-surface: #ffffff;
-
-  /* Derived tokens. Each mixes the accent into a neutral so the card
-     reads crisply against bright or coloured surfaces without
-     transparency. */
   --eto-border:      color-mix(in srgb, var(--eto-accent) 25%, #e5e7eb);
   --eto-border-soft: color-mix(in srgb, var(--eto-accent) 15%, #f3f4f6);
   --eto-bg-start:    color-mix(in srgb, var(--eto-accent)  4%, var(--eto-surface));
   --eto-bg-end:      color-mix(in srgb, var(--eto-accent)  1%, var(--eto-surface));
   --eto-shadow:      color-mix(in srgb, var(--eto-accent) 20%, transparent);
-
-  /* Text & muted */
   --eto-fg:          #18181b;
   --eto-muted:       #71717a;
   --eto-muted-soft:  #a1a1aa;
   --eto-hover-bg:    rgba(0, 0, 0, 0.06);
-
-  /* Arrow — decoupled from accent so its visual weight can be tuned
-     without disturbing the card. */
   --eto-arrow:         #404040;
   --eto-arrow-opacity: 0.35;
 
-  /* Sizing */
   --eto-card-width:     min(480px, calc(100vw - 2rem));
   --eto-card-radius:    0.5rem;
   --eto-card-z:         55;
   --eto-arrow-z:        50;
   --eto-circles-z:      45;
   --eto-spotlight-z:    44;
+  --eto-highlight-z:    43;
   --eto-editor-z:       60;
 
-  /* Handle sizing and visuals (new in 0.3.0-alpha.1).
-     The alpha.0 defaults were 60%-opacity accent-tinted blobs that
-     vanished on near-white surfaces. alpha.1 ships solid handles with
-     a grip icon; these tokens let hosts override without wholesale
-     class overrides. */
-  --eto-handle-size:   28px;            /* card drag handle square side */
-  --eto-handle-radius: 6px;             /* card handle corner radius   */
-  --eto-tip-size:      18px;            /* arrow-tip dot diameter       */
-  --eto-create-size:   20px;            /* drag-to-create dot diameter  */
+  --eto-handle-size:   28px;
+  --eto-handle-radius: 6px;
+  --eto-tip-size:      18px;
+  --eto-create-size:   20px;
   --eto-handle-bg:     var(--eto-accent);
-  --eto-handle-fg:     #ffffff;         /* icon colour inside the handle */
+  --eto-handle-fg:     #ffffff;
   --eto-handle-border: color-mix(in srgb, var(--eto-accent) 70%, #000);
   --eto-handle-shadow: 0 2px 8px color-mix(in srgb, #000 30%, transparent);
+
+  --eto-highlight-color: var(--eto-accent);
 }
 
-/* Dark-mode scope. Host can toggle by adding `.dark` to an ancestor
-   (matches most modern Tailwind / shadcn / CSS-variables setups). */
+/* ── Dark mode ── */
+
 .dark {
   --eto-surface:     #18181b;
   --eto-border:      color-mix(in srgb, var(--eto-accent) 30%, #27272a);
@@ -94,13 +71,9 @@
 /* ── Card ── */
 
 .eto-card {
-  /* `position: fixed` is set inline by <Card> together with left/top or
-     left/bottom, depending on whether the active step has a cardAnchor.
-     We don't duplicate that here — the inline style wins. */
   z-index: var(--eto-card-z);
   width: var(--eto-card-width);
   max-width: calc(100vw - 2rem);
-
   border-radius: var(--eto-card-radius);
   border: 1px solid var(--eto-border);
   overflow: hidden;
@@ -110,7 +83,18 @@
     0 1px 3px rgba(0, 0, 0, 0.08);
   color: var(--eto-fg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  animation: eto-card-in 180ms ease-out;
+}
+
+/* ── Card entrance animations ── */
+
+.eto-card--fade {
+  animation: eto-card-fade 200ms ease-out;
+}
+.eto-card--fade-slide {
+  animation: eto-card-fade-slide 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.eto-card--scale {
+  animation: eto-card-scale 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .eto-header {
@@ -163,6 +147,7 @@
   font-size: 0.8125rem;
   line-height: 1.5;
   color: var(--eto-muted);
+  white-space: pre-wrap;
 }
 
 .eto-footer {
@@ -202,6 +187,14 @@
   background: color-mix(in srgb, var(--eto-accent) 14%, transparent);
 }
 
+/* ── Waiting state ── */
+
+.eto-btn.eto-waiting,
+.eto-branded-btn.eto-waiting {
+  opacity: 0.6;
+  animation: eto-pulse-subtle 1.5s ease-in-out infinite;
+}
+
 /* ── Arrow ── */
 
 .eto-arrow-svg {
@@ -234,110 +227,207 @@
   width: 100%;
   height: 100%;
   z-index: var(--eto-spotlight-z);
-  /* pointer-events toggled inline by <Spotlight> based on blockClicks prop. */
 }
 
-/* ── Editor handles (0.3.0-alpha.1) ───────────────────────────────────
-   The alpha.0 defaults were 60%-opacity accent-tinted blobs that
-   vanished on near-white surfaces. alpha.1 ships solid handles with a
-   grip icon on the card handle and a bordered dot on the tip handle.
-   All dimensions and colours come from the --eto-handle-*, --eto-tip-*
-   tokens in :root so hosts can restyle without repeating selectors. */
+/* ── Highlight ring (NEW) ── */
 
-.eto-editor-card-handle {
-  z-index: var(--eto-editor-z);
-  background-color: var(--eto-handle-bg);
-  border: 2px solid var(--eto-handle-border);
-  border-radius: var(--eto-handle-radius);
-  width: var(--eto-handle-size);
-  height: var(--eto-handle-size);
-  box-shadow: var(--eto-handle-shadow);
-  cursor: grab;
-  transition: background-color 100ms ease, transform 100ms ease;
+.eto-highlight-ring {
+  position: fixed;
+  z-index: var(--eto-highlight-z);
+  pointer-events: none;
+  border: 2px solid var(--eto-highlight-color);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--eto-highlight-color) 40%, transparent);
+  transition: left 300ms ease, top 300ms ease, width 300ms ease, height 300ms ease;
+}
 
-  /* Grip-dots icon embedded as an inline SVG data URI so the library
-     has zero external asset dependencies. Stroked in white; hosts
-     who override --eto-handle-fg need a selector override too since
-     the colour is baked into the SVG. */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round'><circle cx='9' cy='5' r='1'/><circle cx='9' cy='12' r='1'/><circle cx='9' cy='19' r='1'/><circle cx='15' cy='5' r='1'/><circle cx='15' cy='12' r='1'/><circle cx='15' cy='19' r='1'/></svg>");
-  background-size: 14px 14px;
-  background-repeat: no-repeat;
-  background-position: center;
+.eto-highlight-ring.eto-highlight-pulse {
+  animation: eto-highlight-pulse 1.5s ease-in-out infinite;
 }
-.eto-editor-card-handle:hover {
-  background-color: color-mix(in srgb, var(--eto-handle-bg) 85%, #fff);
-  transform: scale(1.08);
+
+/* ── Action highlight class ── */
+
+.eto-action-highlight {
+  outline: 2px solid var(--eto-highlight-color) !important;
+  outline-offset: 2px;
 }
-.eto-editor-card-handle.eto-dragging {
-  cursor: grabbing;
-  background-color: color-mix(in srgb, var(--eto-handle-bg) 70%, #000);
-  transform: scale(1.12);
+
+.eto-action-pulse {
+  animation: eto-highlight-pulse 1.5s ease-in-out infinite;
 }
+
+/* ── Tooltip (NEW) ── */
+
+.eto-tooltip {
+  z-index: var(--eto-card-z);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--eto-border);
+  background: var(--eto-surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: eto-card-fade-slide 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.eto-tooltip-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--eto-fg);
+  margin-bottom: 0.125rem;
+}
+
+.eto-tooltip-body {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--eto-muted);
+}
+
+.eto-tooltip-close {
+  all: unset;
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--eto-muted);
+  line-height: 1;
+}
+.eto-tooltip-close:hover {
+  color: var(--eto-fg);
+}
+
+/* ── Editor toolbar (alpha.3 redesign) ─────────────────────────────────
+   Figma-style floating toolbar below the card. Contains Move, Arrow,
+   Spotlight, Save, Revert as clearly labelled icon buttons. */
+
+.eto-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--eto-surface);
+  border: 1px solid var(--eto-border);
+  box-shadow:
+    0 4px 16px -2px rgba(0, 0, 0, 0.12),
+    0 1px 4px rgba(0, 0, 0, 0.06);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+}
+
+.eto-editor-tool {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--eto-muted);
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+  position: relative;
+  white-space: nowrap;
+}
+.eto-editor-tool:hover {
+  background: var(--eto-hover-bg);
+  color: var(--eto-fg);
+}
+.eto-editor-tool.eto-tool-active {
+  background: color-mix(in srgb, var(--eto-accent) 12%, transparent);
+  color: var(--eto-accent);
+}
+.eto-editor-tool.eto-tool-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.eto-editor-tool.eto-tool-has-changes {
+  color: var(--eto-accent);
+  font-weight: 600;
+}
+.eto-editor-tool.eto-tool-saved {
+  color: #22c55e;
+}
+.eto-editor-tool:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.eto-tool-label {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.eto-tool-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--eto-accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.eto-tool-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--eto-border-soft);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+.eto-tool-indicator {
+  cursor: default;
+  opacity: 0.4;
+}
+.eto-tool-indicator.eto-tool-on {
+  opacity: 1;
+  color: var(--eto-accent);
+}
+
+/* ── Arrow tip handle (redesigned) ── */
 
 .eto-editor-tip-handle {
   z-index: var(--eto-editor-z);
-  background: var(--eto-handle-bg);
-  border: 2.5px solid #fff;
+  width: 20px;
+  height: 20px;
   border-radius: 9999px;
-  width: var(--eto-tip-size);
-  height: var(--eto-tip-size);
-  /* Double ring: white inner border (from border:) plus an accent
-     outer ring via box-shadow. Reads well on both light and dark
-     targets; the drop-shadow sells the "draggable" affordance. */
+  background: var(--eto-accent);
+  border: 2.5px solid #fff;
   box-shadow:
-    0 0 0 1.5px var(--eto-handle-bg),
-    0 2px 6px color-mix(in srgb, #000 40%, transparent);
+    0 0 0 2px var(--eto-accent),
+    0 2px 8px rgba(0, 0, 0, 0.25);
   cursor: grab;
-  transition: background 100ms ease, transform 100ms ease;
+  transition: transform 100ms ease;
+  animation: eto-tip-pulse 2s ease-in-out infinite;
 }
 .eto-editor-tip-handle:hover {
-  transform: scale(1.25);
+  transform: scale(1.3);
 }
 .eto-editor-tip-handle.eto-dragging {
   cursor: grabbing;
-  background: color-mix(in srgb, var(--eto-handle-bg) 70%, #000);
-  transform: scale(1.4);
+  transform: scale(1.5);
+  animation: none;
 }
 
-/* Drag-to-create arrow handle — rendered on the card's right-centre
-   edge when the active step has a target but no arrow annotation.
-   Mouse-down seeds the arrow; mouse-move tracks the cursor. Dashed
-   border + plus icon visually distinguish creation from re-aim. */
-.eto-editor-create-arrow {
-  z-index: var(--eto-editor-z);
-  background: color-mix(in srgb, var(--eto-handle-bg) 15%, transparent);
-  border: 2px dashed var(--eto-handle-bg);
-  border-radius: 9999px;
-  width: var(--eto-create-size);
-  height: var(--eto-create-size);
-  cursor: copy;
-  transition: background 100ms ease, transform 100ms ease;
-
-  /* Plus mark distinguishes from the tip handle's solid dot. The
-     stroke is hard-coded rather than var()'d because background-image
-     data-URIs don't resolve CSS variables; host overrides of the
-     accent still work visually because the background tint and
-     border carry the accent colour. */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23262262' stroke-width='3' stroke-linecap='round'><line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/></svg>");
-  background-size: 12px 12px;
-  background-repeat: no-repeat;
-  background-position: center;
-}
-.eto-editor-create-arrow:hover {
-  background-color: color-mix(in srgb, var(--eto-handle-bg) 25%, transparent);
-  transform: scale(1.15);
+@keyframes eto-tip-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--eto-accent), 0 2px 8px rgba(0,0,0,0.25); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--eto-accent) 30%, transparent), 0 2px 8px rgba(0,0,0,0.25); }
 }
 
-/* ── Branded card variant (0.3.0-alpha.1) ─────────────────────────────
-   Backs <Card variant="branded">. Component markup lives in Card.tsx;
-   this ruleset owns the look: gradient accent header with logo slot,
-   progress dots row, accent-filled Next button. Uses --eto-accent by
-   default; hosts can pass an `accent` prop that becomes
-   --eto-branded-accent inline on the .eto-card--branded node. */
+/* ── Branded card variant ── */
 
 .eto-card--branded {
-  /* Reset .eto-card's padding — the branded layout renders its own
-     header/body/footer, each with its own padding. */
   padding: 0 !important;
   overflow: hidden;
   width: min(420px, calc(100vw - 2rem));
@@ -368,9 +458,6 @@
   height: 24px;
   width: auto;
   user-select: none;
-  /* White-ify the logo so a dark-filled source SVG reads on the
-     gradient. Hosts shipping a white-ready logo can override with
-     `.eto-branded-logo { filter: none; }` in their own stylesheet. */
   filter: brightness(0) invert(1);
 }
 
@@ -390,10 +477,7 @@
   background-color: rgba(255, 255, 255, 0.15);
   color: #fff;
 }
-.eto-card--branded .eto-branded-close svg {
-  width: 16px;
-  height: 16px;
-}
+.eto-card--branded .eto-branded-close svg { width: 16px; height: 16px; }
 
 .eto-card--branded .eto-branded-body {
   padding: 16px 20px 12px;
@@ -402,18 +486,10 @@
   gap: 8px;
 }
 .eto-card--branded .eto-branded-title {
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--eto-fg);
-  margin: 0;
+  font-size: 15px; font-weight: 600; line-height: 1.3; color: var(--eto-fg); margin: 0;
 }
 .eto-card--branded .eto-branded-copy {
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--eto-muted);
-  margin: 0;
-  white-space: pre-wrap;
+  font-size: 13px; line-height: 1.55; color: var(--eto-muted); margin: 0; white-space: pre-wrap;
 }
 
 .eto-card--branded .eto-branded-progress {
@@ -424,15 +500,8 @@
   gap: 6px;
 }
 .eto-card--branded .eto-branded-dot {
-  display: block;
-  height: 6px;
-  width: 6px;
-  border-radius: 9999px;
-  background: color-mix(
-    in srgb,
-    var(--eto-branded-accent, var(--eto-accent)) 25%,
-    transparent
-  );
+  display: block; height: 6px; width: 6px; border-radius: 9999px;
+  background: color-mix(in srgb, var(--eto-branded-accent, var(--eto-accent)) 25%, transparent);
   transition: width 200ms ease, background-color 200ms ease;
 }
 .eto-card--branded .eto-branded-dot.eto-active {
@@ -440,9 +509,7 @@
   background: var(--eto-branded-accent, var(--eto-accent));
 }
 .eto-card--branded .eto-branded-progress-numeric {
-  font-size: 11px;
-  color: var(--eto-muted);
-  font-variant-numeric: tabular-nums;
+  font-size: 11px; color: var(--eto-muted); font-variant-numeric: tabular-nums;
 }
 
 .eto-card--branded .eto-branded-footer {
@@ -469,9 +536,7 @@
   opacity: 0.4;
   pointer-events: none;
 }
-.eto-card--branded .eto-branded-btn-back {
-  color: var(--eto-muted);
-}
+.eto-card--branded .eto-branded-btn-back { color: var(--eto-muted); }
 .eto-card--branded .eto-branded-btn-back:hover:not(:disabled) {
   background-color: var(--eto-hover-bg);
   color: var(--eto-fg);
@@ -489,7 +554,36 @@
 
 /* ── Keyframes ── */
 
-@keyframes eto-card-in {
+@keyframes eto-card-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+@keyframes eto-card-fade-slide {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes eto-card-scale {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes eto-arrow-draw {
+  from { stroke-dashoffset: var(--eto-arrow-length, 500); }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes eto-highlight-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--eto-highlight-color) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--eto-highlight-color) 0%, transparent);
+  }
+}
+
+@keyframes eto-pulse-subtle {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.35; }
 }

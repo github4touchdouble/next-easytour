@@ -3,25 +3,10 @@
 /**
  * @module overlay/Spotlight
  *
- * Dims the entire viewport except for rectangular cutouts around the
- * active step's target(s). Implemented as a full-screen fixed SVG
- * with a mask: the mask's white rect exposes the dimming layer; the
- * black rects punch holes where the targets live.
- *
- * Design choices:
- *
- *   - **SVG mask, not multiple `<div>` overlays.** A four-div border
- *     arrangement breaks as soon as two targets overlap or the
- *     target has rounded corners. A mask handles arbitrary cutout
- *     geometry with a single layer.
- *
- *   - **`pointer-events: none` by default.** The overlay is
- *     cosmetic; it must not block clicks on the targets or anywhere
- *     else. Hosts that want to trap clicks outside the target to
- *     force tour progression can set `blockClicks`.
- *
- *   - **Renders nothing when the step has no targets or
- *     `annotations.spotlight !== true`.** Opt-in per step.
+ * Dims the viewport except for cutouts around the target(s). Alpha.3
+ * adds smooth CSS transitions on the cutout rects so the spotlight
+ * morphs between targets instead of jumping, and supports selector-
+ * based targeting.
  */
 
 import * as React from "react";
@@ -31,20 +16,13 @@ import { useTargetRect } from "../core/useTargetRect";
 import type { Rect } from "../core/useTargetRect";
 
 export interface SpotlightProps {
-  /** Dim colour. Defaults to black at low opacity. */
   color?: string;
-  /** Dim opacity (0–1). Default 0.45. */
   opacity?: number;
-  /** Rounded-corner radius on the cutout, in pixels. Default 6. */
   cornerRadius?: number;
-  /**
-   * Padding around the target inside the cutout, in pixels. Gives
-   * the target a bit of breathing room rather than clipping it flush.
-   * Default 6.
-   */
   padding?: number;
-  /** Block pointer events outside the target. Default false. */
   blockClicks?: boolean;
+  /** Animate cutout transitions between steps. Default true. */
+  animate?: boolean;
 }
 
 export function Spotlight(props: SpotlightProps) {
@@ -54,11 +32,11 @@ export function Spotlight(props: SpotlightProps) {
     cornerRadius = 6,
     padding = 6,
     blockClicks = false,
+    animate = true,
   } = props;
 
   const { step } = useTutorial();
 
-  // Track viewport size for the backdrop rect.
   const [vp, setVp] = useState<{ width: number; height: number }>(() =>
     typeof window === "undefined"
       ? { width: 0, height: 0 }
@@ -71,12 +49,12 @@ export function Spotlight(props: SpotlightProps) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Collect rects for every target on the step. Hooks must be called
-  // unconditionally — so we don't loop over steps.targets with hooks.
-  // Instead we support up to four targets per step (pragmatic limit;
-  // real tours never spotlight more than 2–3 things simultaneously).
+  // Resolve targets: hook IDs first, then step.selector
   const targets = step?.targets ?? [];
-  const rect0 = useTargetRect(targets[0] ?? null);
+  const selectorId = step?.selector ?? null;
+
+  // Use up to 4 target rects
+  const rect0 = useTargetRect(targets[0] ?? selectorId ?? null);
   const rect1 = useTargetRect(targets[1] ?? null);
   const rect2 = useTargetRect(targets[2] ?? null);
   const rect3 = useTargetRect(targets[3] ?? null);
@@ -89,21 +67,18 @@ export function Spotlight(props: SpotlightProps) {
   if (rects.length === 0) return null;
 
   const maskId = `eto-spotlight-mask-${step.id}`;
+  const transitionStyle = animate ? "x 300ms ease, y 300ms ease, width 300ms ease, height 300ms ease" : undefined;
 
   return (
     <svg
       className="eto-spotlight-svg"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
-      style={{
-        pointerEvents: blockClicks ? "auto" : "none",
-      }}
+      style={{ pointerEvents: blockClicks ? "auto" : "none" }}
     >
       <defs>
         <mask id={maskId}>
-          {/* White = visible backdrop. Full viewport. */}
           <rect x="0" y="0" width={vp.width} height={vp.height} fill="white" />
-          {/* Black = cutouts. Each target gets a rounded rect. */}
           {rects.map((r, i) => (
             <rect
               key={i}
@@ -114,6 +89,7 @@ export function Spotlight(props: SpotlightProps) {
               rx={cornerRadius}
               ry={cornerRadius}
               fill="black"
+              style={transitionStyle ? { transition: transitionStyle } : undefined}
             />
           ))}
         </mask>
@@ -126,6 +102,7 @@ export function Spotlight(props: SpotlightProps) {
         fill={color}
         opacity={opacity}
         mask={`url(#${maskId})`}
+        style={{ transition: "opacity 300ms ease" }}
       />
     </svg>
   );

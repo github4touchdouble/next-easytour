@@ -3,22 +3,15 @@
 /**
  * @module core/Tutorial
  *
- * The headless provider. Owns internal runtime state (transition
- * flag, target registry) and exposes two React contexts:
+ * The headless provider. Alpha.3 additions:
  *
- *   1. `TutorialContext` — the public `TutorialApi` snapshot plus
- *      navigation methods. Read via `useTutorial()`.
- *   2. `TargetRegistryContext` — an id → DOM element map populated
- *      by `useTutorialTarget`. Read by layout-aware components
- *      (`Arrow`, `Spotlight`, `Circles`).
- *
- * Design note on the registry: it is built once and never replaced.
- * Tick-style change notifications are delivered to subscribers via a
- * manual listener list rather than by re-creating the context value.
- * This matters because `useTargetRect` uses the registry inside a
- * `useEffect` dep array — if the registry identity changed on every
- * mutation, every registration would re-trigger every effect,
- * producing an infinite update loop under React's strict reconciler.
+ *   - CSS-selector targeting alongside hook-based `useTutorialTarget`.
+ *   - Auto-scroll targets into view on step enter.
+ *   - Step action execution via `useStepActions`.
+ *   - WaitFor condition evaluation via `useWaitFor`.
+ *   - Auto-advance timer (fires after waitFor if both present).
+ *   - Highlight ring around active target via `useHighlight`.
+ *   - `getTargetElement()` on the API for host-side element access.
  */
 
 import * as React from "react";
@@ -43,24 +36,14 @@ import {
 } from "./state";
 import { CardRectContext } from "../overlay/Arrow";
 import type { Rect } from "./useTargetRect";
+import { useStepActions } from "./useStepActions";
+import { useWaitFor } from "./useWaitFor";
+import { useHighlight } from "./useHighlight";
 
-// ────────────────────────────────────────────────────────────────────────
-// Contexts
-// ────────────────────────────────────────────────────────────────────────
+// ── Contexts ────────────────────────────────────────────────────────────
 
 const TutorialContext = createContext<TutorialApi<unknown> | null>(null);
 
-/**
- * Target registry API. Exposed to `useTargetRect` and
- * `useTutorialTarget`. The object's identity is stable for the
- * lifetime of the provider — internal mutations do NOT allocate a
- * new registry.
- *
- * `subscribe` follows the `useSyncExternalStore` contract: consumers
- * pass a callback, receive an unsubscribe function, and are invoked
- * synchronously whenever a registration changes. `getVersion` lets
- * them observe the current tick without subscribing.
- */
 export interface TargetRegistry {
   register: (id: string, el: Element | null) => void;
   get: (id: string) => Element | null;
@@ -70,16 +53,8 @@ export interface TargetRegistry {
 
 const TargetRegistryContext = createContext<TargetRegistry | null>(null);
 
-// ────────────────────────────────────────────────────────────────────────
-// Hooks for consumers
-// ────────────────────────────────────────────────────────────────────────
+// ── Hooks ───────────────────────────────────────────────────────────────
 
-/**
- * Read the current tutorial state and navigate programmatically.
- * Must be called from a descendant of `<Tutorial>`.
- *
- * @throws If called outside a `<Tutorial>` provider.
- */
 export function useTutorial<Meta = unknown>(): TutorialApi<Meta> {
   const ctx = useContext(TutorialContext);
   if (!ctx) {
@@ -91,17 +66,10 @@ export function useTutorial<Meta = unknown>(): TutorialApi<Meta> {
   return ctx as TutorialApi<Meta>;
 }
 
-/** Internal: read the target registry. */
 export function useTargetRegistry(): TargetRegistry | null {
   return useContext(TargetRegistryContext);
 }
 
-/**
- * Internal: subscribe to the registry's change tick. Returns a number
- * that bumps every time a target mounts or unmounts. Used by
- * `useTargetRect` to re-read rects without re-creating the registry
- * context on every change.
- */
 export function useRegistryVersion(registry: TargetRegistry | null): number {
   return useSyncExternalStore(
     (onChange) => (registry ? registry.subscribe(onChange) : () => {}),
@@ -110,9 +78,7 @@ export function useRegistryVersion(registry: TargetRegistry | null): number {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Provider
-// ────────────────────────────────────────────────────────────────────────
+// ── Provider ────────────────────────────────────────────────────────────
 
 export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
   const {
@@ -123,7 +89,10 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
     onClose,
     onStepEnter,
     onStepLeave,
+    onWaitComplete,
     canAdvance: canAdvanceProp,
+    transition: globalTransition,
+    scrollIntoView: globalScrollIntoView,
     children,
   } = props;
 
@@ -151,19 +120,21 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
     prevStepIdRef.current = stepId;
     if (prev !== null && stepId !== null && prev !== stepId) {
       setTransitioning(true);
-      const t = setTimeout(() => setTransitioning(false), 80);
+      const dur = globalTransition?.duration ?? 200;
+      const t = setTimeout(() => setTransitioning(false), Math.min(dur, 200));
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [stepId]);
+  }, [stepId, globalTransition?.duration]);
 
-  // ── canAdvance evaluation ─────────────────────────────────────────────
+  // ── Active step computation ───────────────────────────────────────────
   const activeIndex = useMemo(
     () => (stepId === null ? -1 : steps.findIndex((s) => s.id === stepId)),
     [steps, stepId],
   );
   const activeStep = activeIndex >= 0 ? steps[activeIndex] : null;
 
+  // ── canAdvance evaluation ─────────────────────────────────────────────
   const canAdvance = useMemo(() => {
     if (!activeStep) return true;
     if (canAdvanceProp === undefined) return true;
@@ -175,6 +146,144 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
       return true;
     }
   }, [activeStep, activeIndex, canAdvanceProp]);
+
+  // ── Target registry (stable identity) ─────────────────────────────────
+  const targetsMapRef = useRef<Map<string, Element>>(new Map());
+  const versionRef = useRef(0);
+  const listenersRef = useRef<Set<() => void>>(new Set());
+
+  const registry = useMemo<TargetRegistry>(
+    () => ({
+      register: (id, el) => {
+        const map = targetsMapRef.current;
+        const current = map.get(id);
+        if (el === current) return;
+        if (el) map.set(id, el);
+        else map.delete(id);
+        versionRef.current += 1;
+        listenersRef.current.forEach((fn) => fn());
+      },
+      get: (id) => targetsMapRef.current.get(id) ?? null,
+      subscribe: (onChange) => {
+        listenersRef.current.add(onChange);
+        return () => { listenersRef.current.delete(onChange); };
+      },
+      getVersion: () => versionRef.current,
+    }),
+    [],
+  );
+
+  // ── getTargetElement: registry → selector fallback ────────────────────
+  const getTargetElement = useCallback(
+    (targetIdOrSelector?: string): Element | null => {
+      if (!targetIdOrSelector) {
+        // Try the active step's primary target, then selector
+        if (activeStep?.targets?.[0]) {
+          const el = registry.get(activeStep.targets[0]);
+          if (el) return el;
+        }
+        if (activeStep?.selector) {
+          return document.querySelector(activeStep.selector);
+        }
+        return null;
+      }
+      // Try hook registry first
+      const fromReg = registry.get(targetIdOrSelector);
+      if (fromReg) return fromReg;
+      // Try as CSS selector
+      try {
+        return document.querySelector(targetIdOrSelector);
+      } catch {
+        return null;
+      }
+    },
+    [registry, activeStep],
+  );
+
+  // ── CSS selector registration ─────────────────────────────────────────
+  // When a step has `selector` but no hook-registered target, we register
+  // the matched element into the registry so all overlay components
+  // (Arrow, Spotlight, Circles) work without modification.
+  useEffect(() => {
+    if (!activeStep?.selector) return;
+    // Use the selector string as the target ID if no explicit targets
+    const selectorId = activeStep.selector;
+    const alreadyRegistered = registry.get(selectorId);
+    if (alreadyRegistered) return;
+
+    const el = document.querySelector(activeStep.selector);
+    if (el) {
+      registry.register(selectorId, el);
+      return () => { registry.register(selectorId, null); };
+    }
+    return undefined;
+  }, [activeStep?.id, activeStep?.selector, registry]);
+
+  // ── Auto-scroll ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!activeStep) return;
+    const scrollOpt = activeStep.scrollIntoView ?? globalScrollIntoView;
+    if (!scrollOpt) return;
+
+    // Small delay so CSS-selector registration settles
+    const t = setTimeout(() => {
+      const el = getTargetElement();
+      if (!el) return;
+
+      if (scrollOpt === true) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        el.scrollIntoView(scrollOpt);
+      }
+    }, 50);
+
+    return () => clearTimeout(t);
+  }, [activeStep?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Step actions ──────────────────────────────────────────────────────
+  useStepActions(
+    activeStep as Step<never> | null,
+    getTargetElement,
+  );
+
+  // ── WaitFor ───────────────────────────────────────────────────────────
+  const waitSatisfied = useWaitFor(
+    activeStep as Step<never> | null,
+    getTargetElement,
+  );
+  const isWaiting = activeStep?.waitFor ? !waitSatisfied : false;
+
+  // Fire onWaitComplete when wait transitions from pending to satisfied
+  const prevWaitRef = useRef(false);
+  useEffect(() => {
+    if (prevWaitRef.current && !isWaiting && activeStep) {
+      try { onWaitComplete?.(activeStep, activeIndex); } catch { /* */ }
+    }
+    prevWaitRef.current = isWaiting;
+  }, [isWaiting, activeStep, activeIndex, onWaitComplete]);
+
+  // ── Auto-advance ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!activeStep?.autoAdvance) return;
+    if (isWaiting) return; // Wait for waitFor first
+
+    const t = setTimeout(() => {
+      const nextIdx = activeIndex + 1;
+      if (nextIdx < steps.length) {
+        onStepChange(steps[nextIdx].id);
+      } else {
+        onStepChange(null); // Close
+      }
+    }, activeStep.autoAdvance);
+
+    return () => clearTimeout(t);
+  }, [activeStep?.id, activeStep?.autoAdvance, isWaiting, activeIndex, steps, onStepChange]);
+
+  // ── Highlight ─────────────────────────────────────────────────────────
+  useHighlight(
+    activeStep as Step<never> | null,
+    getTargetElement,
+  );
 
   // ── Lifecycle firing ──────────────────────────────────────────────────
   const prevActiveRef = useRef<{ step: Step<Meta> | null; index: number }>({
@@ -198,36 +307,28 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
     const closing = prevId !== null && currId === null;
 
     if (prev.step) {
-      try {
-        onStepLeave?.(prev.step, prev.index);
-      } catch (err) {
+      try { onStepLeave?.(prev.step, prev.index); } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[next-easytour] onStepLeave threw:", err);
       }
     }
 
     if (opening) {
-      try {
-        onOpen?.();
-      } catch (err) {
+      try { onOpen?.(); } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[next-easytour] onOpen threw:", err);
       }
     }
 
     if (curr.step) {
-      try {
-        onStepEnter?.(curr.step, curr.index);
-      } catch (err) {
+      try { onStepEnter?.(curr.step, curr.index); } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[next-easytour] onStepEnter threw:", err);
       }
     }
 
     if (closing) {
-      try {
-        onClose?.();
-      } catch (err) {
+      try { onClose?.(); } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[next-easytour] onClose threw:", err);
       }
@@ -237,9 +338,11 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
   }, [activeStep, activeIndex, onOpen, onClose, onStepEnter, onStepLeave]);
 
   // ── Navigation methods ────────────────────────────────────────────────
+  const effectiveCanAdvance = canAdvance && !isWaiting;
+
   const navInput = useMemo(
-    () => ({ steps, stepId, canAdvance }),
-    [steps, stepId, canAdvance],
+    () => ({ steps, stepId, canAdvance: effectiveCanAdvance }),
+    [steps, stepId, effectiveCanAdvance],
   );
 
   const next = useCallback(() => {
@@ -269,52 +372,6 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
     onStepChange(intent.toId);
   }, [navInput, onStepChange]);
 
-  // ── Target registry (stable identity) ─────────────────────────────────
-  //
-  // The registry lives entirely in refs; its shape is built once via
-  // `useMemo(..., [])` and never re-created. Change notifications are
-  // pushed to subscribers via a listener list. This is the pattern
-  // `useSyncExternalStore` is designed for: external mutable state,
-  // stable subscribe function, stable snapshot function.
-  //
-  // Previously we stored the tick in React state and rebuilt the
-  // registry object in a `useMemo` keyed by it. Every registration
-  // bumped the tick → rebuilt the registry → every consumer reading
-  // the registry through context re-ran its effects → if those
-  // effects touched target state, infinite loop under concurrent
-  // React / test-library re-renders. The ref-and-listener pattern
-  // side-steps this entirely.
-  const targetsMapRef = useRef<Map<string, Element>>(new Map());
-  const versionRef = useRef(0);
-  const listenersRef = useRef<Set<() => void>>(new Set());
-
-  const registry = useMemo<TargetRegistry>(
-    () => ({
-      register: (id, el) => {
-        const map = targetsMapRef.current;
-        const current = map.get(id);
-        if (el === current) return; // no-op re-registration
-        if (el) {
-          map.set(id, el);
-        } else {
-          map.delete(id);
-        }
-        versionRef.current += 1;
-        // Notify after mutation so subscribers read the new state.
-        listenersRef.current.forEach((fn) => fn());
-      },
-      get: (id) => targetsMapRef.current.get(id) ?? null,
-      subscribe: (onChange) => {
-        listenersRef.current.add(onChange);
-        return () => {
-          listenersRef.current.delete(onChange);
-        };
-      },
-      getVersion: () => versionRef.current,
-    }),
-    [],
-  );
-
   // ── Assemble the public API ───────────────────────────────────────────
   const snapshot = useMemo(
     () =>
@@ -323,8 +380,9 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
         stepId,
         transitioning,
         canAdvance,
+        isWaiting,
       }),
-    [steps, stepId, transitioning, canAdvance],
+    [steps, stepId, transitioning, canAdvance, isWaiting],
   );
 
   const api = useMemo<TutorialApi<Meta>>(
@@ -334,18 +392,12 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
       prev,
       goto,
       close,
+      getTargetElement,
     }),
-    [snapshot, next, prev, goto, close],
+    [snapshot, next, prev, goto, close, getTargetElement],
   );
 
   // ── Card rect store ───────────────────────────────────────────────────
-  // `<Card>` writes its live bounding rect here; `<Arrow>` and
-  // `<EditorHandles>` read it. The Provider must live at the Tutorial
-  // level — not at Card level — because EditorHandles is a *sibling*
-  // of Card in the composed JSX tree, so a Card-scoped Provider would
-  // be unreachable. The store shape is `{ rect, setRect }`; the public
-  // `useCardRect()` hook returns only the rect, so consumer code is
-  // unchanged across this refactor.
   const [cardRect, setCardRect] = useState<Rect | null>(null);
   const cardRectStore = useMemo(
     () => ({ rect: cardRect, setRect: setCardRect }),

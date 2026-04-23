@@ -1,128 +1,151 @@
 "use client";
 
-import { useState } from "react";
-import { TutorialOverlay, type TutorialStep } from "next-easytour";
+/**
+ * next-easytour 0.3.0-alpha.3 — Next.js App Router example.
+ *
+ * Demonstrates CSS-selector targeting, step actions, waitFor,
+ * auto-advance, auto-scroll, highlight, and branded card.
+ */
 
-const INITIAL_STEPS: TutorialStep[] = [
+import { useState } from "react";
+import {
+  Tutorial,
+  Card,
+  Arrow,
+  Spotlight,
+  Circles,
+  useTutorialTarget,
+  targetPoint,
+  viewportAnchor,
+  type Step,
+} from "next-easytour";
+
+interface DemoMeta { note?: string }
+
+const steps: Step<DemoMeta>[] = [
   {
-    title: "Welcome",
-    body: "This is a minimal example of next-easytour. Use the navigation below to step through the tour.",
+    id: "welcome",
+    title: "Welcome to the Demo",
+    body: "This tour shows off alpha.3 features.\nIt will auto-advance in 3 seconds…",
+    autoAdvance: 3000,
+    transition: { enter: "scale" },
   },
   {
-    title: "Save your work",
-    body: "This button would persist your changes in a real app. Notice the arrow and the pulsing highlight.",
-    target: "save-button",
-    targetLabel: "Save",
-    arrowTo: { x: 50, y: 50 },
-    arrowStyle: { bend: 28 },
+    id: "search",
+    title: "Try searching",
+    body: "Type something in the search box to continue.",
+    selector: "#demo-search",             // CSS selector — no hook needed
+    scrollIntoView: true,
+    highlight: true,
+    annotations: {
+      spotlight: true,
+      arrow: { to: targetPoint(50, 50) },
+    },
+    actions: [{ type: "focus", selector: "#demo-search" }],
+    waitFor: { type: "input", selector: "#demo-search", pattern: "\\S+" },
   },
   {
-    title: "Browse entries",
-    body: "Your data appears here. The arrow re-targets automatically as you navigate between steps.",
-    target: "data-list",
-    arrowStyle: { bend: 35, flip: true },
+    id: "counter",
+    title: "The Counter",
+    body: "This uses hook-based targeting.\nClick the button to continue.",
+    targets: ["counter-btn"],
+    highlight: { pulse: true, color: "#22c55e" },
+    annotations: {
+      spotlight: true,
+      arrow: { to: targetPoint(50, 90), style: { dashed: true } },
+    },
+    waitFor: { type: "click" },
   },
   {
-    title: "Circle annotations",
-    body: "You can circle specific regions inside a target without tagging them individually.",
-    target: "data-list",
-    circles: [
-      { x: 15, y: 30, r: 8, ry: 14, rot: -8, label: "First row" },
-      { x: 70, y: 70, r: 10, ry: 10, rot: 0, label: "Bottom right" },
+    id: "features",
+    title: "Feature List",
+    body: "The library scrolled this into view and highlighted it.",
+    selector: "#feature-list",
+    scrollIntoView: { behavior: "smooth", block: "center" },
+    highlight: true,
+    annotations: {
+      arrow: { to: targetPoint(10, 50), style: { loopEnd: true } },
+    },
+    actions: [
+      { type: "scroll-into-view", behavior: "smooth" },
+      { type: "wait", ms: 500 },
+      { type: "add-class", selector: "#feature-list", className: "demo-ring" },
     ],
+  },
+  {
+    id: "chart",
+    title: "Annotated Regions",
+    body: "Circles highlight sub-regions within a target.",
+    selector: "#demo-chart",
+    annotations: {
+      circles: [
+        { x: 30, y: 40, r: 15, label: "Region A" },
+        { x: 70, y: 60, r: 20, ry: 12, rot: -15, label: "Region B" },
+      ],
+    },
+    cardAnchor: viewportAnchor(70, 20),
+  },
+  {
+    id: "done",
+    title: "Tour Complete!",
+    body: "You saw CSS-selector targeting, step actions, waitFor, auto-advance, highlights, circles, and animated arrows.",
+    meta: { note: "final step" },
   },
 ];
 
-export default function Home() {
-  const [steps, setSteps] = useState<TutorialStep[]>(INITIAL_STEPS);
-  const [step, setStep] = useState<number | null>(null);
-  const [debug, setDebug] = useState(false);
-
+function Counter() {
+  const [count, setCount] = useState(0);
+  const ref = useTutorialTarget<HTMLButtonElement>("counter-btn");
   return (
-    <main style={{ maxWidth: 720, margin: "3rem auto", padding: "0 1.5rem" }}>
-      <h1 style={{ fontSize: 24, margin: 0 }}>next-easytour demo</h1>
-      <p style={{ color: "#6b7280", marginTop: 8 }}>
-        Click <strong>Start tour</strong> to walk through the steps. Toggle
-        <strong> Author mode</strong> to drag the arrow tip and save your edits
-        back to <code>public/tutorial.json</code> (if your dev server has the
-        API route from the README).
-      </p>
+    <button ref={ref} onClick={() => setCount(c => c + 1)}
+      style={{ padding: "0.5rem 1rem", borderRadius: 6, border: "1px solid #ccc", cursor: "pointer" }}>
+      Count: {count}
+    </button>
+  );
+}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-        <button
-          onClick={() => setStep(0)}
-          style={{
-            padding: "8px 14px",
-            borderRadius: 6,
-            border: "1px solid #4285F4",
-            background: "transparent",
-            cursor: "pointer",
-          }}
-        >
-          Start tour
-        </button>
-        <button
-          onClick={() => setDebug((d) => !d)}
-          style={{
-            padding: "8px 14px",
-            borderRadius: 6,
-            border: "1px solid #9ca3af",
-            background: "transparent",
-            cursor: "pointer",
-          }}
-        >
-          Author mode: {debug ? "on" : "off"}
-        </button>
+export default function Page() {
+  const [stepId, setStepId] = useState<string | null>(null);
+  return (
+    <main style={{ maxWidth: 640, margin: "0 auto", padding: "2rem", fontFamily: "system-ui" }}>
+      <h1>next-easytour alpha.3 demo</h1>
+      <button onClick={() => setStepId("welcome")}
+        style={{ padding: "0.5rem 1rem", borderRadius: 6, background: "#4285F4", color: "#fff", border: "none", cursor: "pointer", marginBottom: "1.5rem" }}>
+        Start Tour
+      </button>
+
+      <div style={{ marginBottom: "1.5rem" }}>
+        <label htmlFor="demo-search" style={{ fontSize: "0.875rem", fontWeight: 500 }}>Search</label>
+        <input id="demo-search" type="text" placeholder="Type something…"
+          style={{ display: "block", width: "100%", padding: "0.5rem", marginTop: "0.25rem", borderRadius: 6, border: "1px solid #ccc" }} />
       </div>
 
-      <div style={{ display: "flex", gap: 12, marginTop: 40 }}>
-        <button
-          data-tutorial-id="save-button"
-          style={{
-            padding: "10px 18px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            background: "#f9fafb",
-            cursor: "pointer",
-            fontSize: 14,
-          }}
-        >
-          Save
-        </button>
+      <div style={{ marginBottom: "1.5rem" }}><Counter /></div>
+
+      <ul id="feature-list" style={{ marginBottom: "1.5rem", lineHeight: 1.8 }}>
+        <li>CSS-selector targeting</li>
+        <li>Step actions (scroll, highlight, class, dispatch)</li>
+        <li>WaitFor conditions (click, input, event, delay)</li>
+        <li>Auto-advance &amp; auto-scroll</li>
+        <li>Highlight ring with pulse</li>
+        <li>Animated arrow draw-on</li>
+      </ul>
+
+      <div id="demo-chart" style={{ width: "100%", height: 200, background: "#f3f4f6", borderRadius: 8, border: "1px solid #e5e7eb", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>
+        Chart placeholder
       </div>
 
-      <div
-        data-tutorial-id="data-list"
-        style={{
-          marginTop: 28,
-          padding: 16,
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          background: "#fafafa",
-          minHeight: 180,
-        }}
+      <Tutorial<DemoMeta>
+        steps={steps} stepId={stepId} onStepChange={setStepId}
+        onStepEnter={(s) => console.log(`[tour] enter: ${s.id}`)}
+        onWaitComplete={(s) => console.log(`[tour] wait done: ${s.id}`)}
       >
-        <div style={{ padding: "8px 0", borderBottom: "1px solid #e5e7eb" }}>Row 1</div>
-        <div style={{ padding: "8px 0", borderBottom: "1px solid #e5e7eb" }}>Row 2</div>
-        <div style={{ padding: "8px 0", borderBottom: "1px solid #e5e7eb" }}>Row 3</div>
-        <div style={{ padding: "8px 0" }}>Row 4</div>
-      </div>
+        <Spotlight />
+        <Arrow />
+        <Card variant="branded" logo="/next.svg" logoAlt="Next.js" />
+      </Tutorial>
 
-      {step !== null && (
-        <TutorialOverlay
-          steps={steps}
-          step={step}
-          onStepChange={setStep}
-          onClose={() => setStep(null)}
-          debug={debug}
-          onSave={async (updated) => {
-            // Replace this with a POST to your own backend if you want the
-            // changes to survive a reload. For this demo we just keep them
-            // in state so you can walk through the updated tour immediately.
-            setSteps(updated);
-          }}
-        />
-      )}
+      <style>{`.demo-ring { outline: 2px solid #4285F4; outline-offset: 4px; border-radius: 8px; }`}</style>
     </main>
   );
 }

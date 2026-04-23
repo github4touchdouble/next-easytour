@@ -29,6 +29,7 @@ export const DEFAULT_STYLE: Required<ArrowStyle> = {
   dashed: false,
   headSize: 8,
   loopEnd: false,
+  animated: true,
 };
 
 /** Merge a partial style onto the defaults. */

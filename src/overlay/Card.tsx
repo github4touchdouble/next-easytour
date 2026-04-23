@@ -3,39 +3,11 @@
 /**
  * @module overlay/Card
  *
- * The tutorial card. Three modes in 0.3.0-alpha.1+:
- *
- *   1. **Default** (`<Card />`) — minimal title/body/nav layout, no
- *      branding. Unchanged from alpha.0. Meant for examples, tests,
- *      and hosts that wire their own styles from scratch.
- *
- *   2. **Branded** (`<Card variant="branded" logo="/logo.svg" />`) —
- *      gradient accent header, logo slot, progress dots, primary
- *      accent Next button. New in alpha.1. Suitable as-is for most
- *      product tours; the gradient colour comes from `--eto-accent`.
- *
- *   3. **Render-prop** — full control over the card's internal markup.
- *      Receives the full tutorial API as an argument.
- *
- *          <Card>
- *            {({ step, index, total, next, prev, close }) => (
- *              <MyCompletelyCustomCard ... />
- *            )}
- *          </Card>
- *
- * In all three modes the outer `<div className="eto-card">` wrapper is
- * the library's. It handles:
- *
- *   - Positioning (from `step.cardAnchor`, or the sensible default:
- *     bottom-centre for steps with a target, viewport-centre for
- *     targetless steps — new in alpha.1).
- *   - Fixed layout so the card stays anchored during scroll.
- *   - Publishing its live `DOMRect` to `CardRectContext` so `<Arrow>`
- *     can route its origin to the nearest card edge.
- *   - Keyboard navigation (Escape → close, Arrow keys → prev/next).
- *   - Accessibility (role="dialog", aria-labelledby, focus on open).
- *
- * Renders nothing while the tour is closed.
+ * Tutorial card. Alpha.3 adds:
+ *   - `step.content` JSX body rendering
+ *   - Entrance/exit CSS animation classes driven by `step.transition`
+ *   - Waiting state indicator (pulsing Next button when waitFor is pending)
+ *   - Smart card anchor for selector-targeted steps
  */
 
 import * as React from "react";
@@ -50,17 +22,10 @@ import {
 import { useTutorial } from "../core/Tutorial";
 import { useCardRectSetter } from "./Arrow";
 import type { Rect } from "../core/useTargetRect";
-import type { TutorialApi, CardVariant, BrandedCardProps } from "../types";
+import type { TutorialApi, CardVariant, BrandedCardProps, TransitionConfig } from "../types";
 
-// ────────────────────────────────────────────────────────────────────────
-// Render-prop signature
-// ────────────────────────────────────────────────────────────────────────
+// ── Render-prop signature ───────────────────────────────────────────────
 
-/**
- * Arg passed to the render-prop form of `<Card>`. A pared-down view of
- * the full TutorialApi with every field most custom cards need, in a
- * stable shape that doesn't churn when the library adds fields.
- */
 export interface CardRenderArgs<Meta = unknown> {
   step: NonNullable<TutorialApi<Meta>["step"]>;
   index: number;
@@ -68,6 +33,7 @@ export interface CardRenderArgs<Meta = unknown> {
   isFirst: boolean;
   isLast: boolean;
   canAdvance: boolean;
+  isWaiting: boolean;
   next: () => void;
   prev: () => void;
   close: () => void;
@@ -78,31 +44,14 @@ type CardChildren<Meta = unknown> =
   | ((args: CardRenderArgs<Meta>) => React.ReactNode);
 
 export interface CardProps<Meta = unknown> extends BrandedCardProps {
-  /**
-   * Render-prop children receive the tutorial API as an argument and
-   * return fully custom JSX. A plain React node renders alongside the
-   * library's default header/body/footer.
-   *
-   * Omit `children` entirely to use the `variant`-selected default.
-   */
   children?: CardChildren<Meta>;
-  /**
-   * Layout variant for the built-in card. Ignored when `children` is
-   * supplied (render-prop / custom children take over the content).
-   * Default `"default"` preserves alpha.0 behaviour.
-   */
   variant?: CardVariant;
-  /**
-   * Disable keyboard shortcuts (Esc / Arrow keys). Default false —
-   * the library wires them by default for accessibility; opt out only
-   * if they conflict with your host app.
-   */
   disableKeyboard?: boolean;
+  /** Override the global transition config. */
+  transition?: TransitionConfig;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Card component
-// ────────────────────────────────────────────────────────────────────────
+// ── Card component ──────────────────────────────────────────────────────
 
 export function Card<Meta = unknown>(props: CardProps<Meta>) {
   const {
@@ -114,46 +63,36 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
     labels,
     accent,
     hideProgress,
+    transition: transitionProp,
   } = props;
   const api = useTutorial<Meta>();
-  const { step, index, total, isFirst, isLast, canAdvance, next, prev, close } =
-    api;
+  const {
+    step, index, total, isFirst, isLast, canAdvance, isWaiting,
+    next, prev, close,
+  } = api;
 
-  // Unique ids for aria-labelledby / aria-describedby on non-custom cards.
   const baseId = useId();
   const titleId = `${baseId}-title`;
   const bodyId = `${baseId}-body`;
 
   // ── Card rect publication ─────────────────────────────────────────────
-  //
-  // Card's bounding rect is consumed by both `<Arrow>` (for origin
-  // routing) and `<EditorHandles>` (for positioning the card-drag
-  // handle). Both sit OUTSIDE Card's DOM subtree — they're siblings
-  // inside `<Tutorial>` — so the context holding this rect must be
-  // mounted at the `<Tutorial>` level. We write to it via the
-  // `useCardRectSetter` hook; the reader hook `useCardRect()` stays
-  // unchanged for consumers.
+  // Publish the card's live bounding rect so <Arrow> and <EditorHandles>
+  // can read it. Uses a rAF loop instead of ResizeObserver alone because
+  // editor drags change the card's position without changing its size,
+  // and ResizeObserver only fires on size changes.
   const cardRef = useRef<HTMLDivElement>(null);
   const setCardRect = useCardRectSetter();
-  // Keep the most recent rect in a ref so the 0.5px-threshold dedupe
-  // below doesn't need React state — we skip the setState call entirely
-  // when the rect hasn't moved. Cheaper than re-running the provider
-  // subscribers for sub-pixel drift.
   const lastRectRef = useRef<Rect | null>(null);
+  const rafRef = useRef<number>(0);
 
   useLayoutEffect(() => {
     if (!cardRef.current) return;
-    if (!setCardRect) return;  // Card rendered outside a <Tutorial>.
+    if (!setCardRect) return;
     const el = cardRef.current;
 
     const read = () => {
       const r = el.getBoundingClientRect();
-      const next: Rect = {
-        left: r.left,
-        top: r.top,
-        width: r.width,
-        height: r.height,
-      };
+      const next: Rect = { left: r.left, top: r.top, width: r.width, height: r.height };
       const prev = lastRectRef.current;
       if (
         prev &&
@@ -161,25 +100,21 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
         Math.abs(prev.top - next.top) < 0.5 &&
         Math.abs(prev.width - next.width) < 0.5 &&
         Math.abs(prev.height - next.height) < 0.5
-      ) {
-        return;
-      }
+      ) return;
       lastRectRef.current = next;
       setCardRect(next);
     };
 
-    read();
-    const ro =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(read) : null;
-    ro?.observe(el);
-    window.addEventListener("scroll", read, true);
-    window.addEventListener("resize", read);
+    // RAF loop: re-reads the rect every frame so editor drag handles,
+    // arrows, and any other rect consumer stay perfectly in sync.
+    const tick = () => {
+      read();
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+
     return () => {
-      ro?.disconnect();
-      window.removeEventListener("scroll", read, true);
-      window.removeEventListener("resize", read);
-      // Clear the rect when Card unmounts so stale values don't linger
-      // in the Tutorial-level store across tour close/reopen cycles.
+      cancelAnimationFrame(rafRef.current);
       lastRectRef.current = null;
       setCardRect(null);
     };
@@ -192,20 +127,10 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       const t = e.target as HTMLElement | null;
-      if (
-        t &&
-        (t.tagName === "INPUT" ||
-          t.tagName === "TEXTAREA" ||
-          t.isContentEditable)
-      ) {
-        return;
-      }
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       switch (e.key) {
         case "Escape":
           e.preventDefault();
-          // alpha.1 fix: blur the focused element before closing so
-          // focus doesn't silently land back on a tour-originated
-          // button after close.
           (document.activeElement as HTMLElement | null)?.blur?.();
           close();
           break;
@@ -223,18 +148,11 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
     return () => window.removeEventListener("keydown", onKey);
   }, [disableKeyboard, step, next, prev, close]);
 
+  // ── Resolve entrance animation class ──────────────────────────────────
+  const enterAnim = step?.transition?.enter ?? transitionProp?.enter ?? "fade-slide";
+  const animClass = enterAnim === "none" ? "" : ` eto-card--${enterAnim}`;
+
   // ── Positioning style ────────────────────────────────────────────────
-  //
-  // Precedence, top to bottom:
-  //
-  //   1. Explicit `step.cardAnchor` — literal top-left anchor in viewport %.
-  //   2. Targetless steps (alpha.1) → viewport centre, so the card
-  //      reads as a modal introduction rather than detached footer.
-  //   3. Steps with targets → bottom-centre default (alpha.0 behaviour).
-  //
-  // `position: fixed` lives here, not in CSS, so hosts can opt into
-  // `position: absolute` wrappers if they really want the card to flow
-  // inline.
   const positionStyle = useMemo<React.CSSProperties>(() => {
     if (step?.cardAnchor) {
       return {
@@ -243,9 +161,8 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
         top: `${step.cardAnchor.y}vh`,
       };
     }
-    const hasTargets = (step?.targets?.length ?? 0) > 0;
+    const hasTargets = (step?.targets?.length ?? 0) > 0 || !!step?.selector;
     if (!hasTargets) {
-      // alpha.1: targetless steps render centred.
       return {
         position: "fixed",
         left: "50%",
@@ -259,37 +176,28 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
       bottom: "1.5rem",
       transform: "translateX(-50%)",
     };
-  }, [step?.cardAnchor, step?.targets]);
+  }, [step?.cardAnchor, step?.targets, step?.selector]);
 
-  // ── Early return ─────────────────────────────────────────────────────
   if (!step) return null;
 
-  // ── Render-prop resolution ───────────────────────────────────────────
   const renderArgs: CardRenderArgs<Meta> = {
-    step,
-    index,
-    total,
-    isFirst,
-    isLast,
-    canAdvance,
-    next,
-    prev,
-    close,
+    step, index, total, isFirst, isLast, canAdvance, isWaiting, next, prev, close,
   };
   const isRenderProp = typeof children === "function";
   const rendered = isRenderProp
     ? (children as (a: CardRenderArgs<Meta>) => React.ReactNode)(renderArgs)
     : null;
 
-  // ── Variant class composition ────────────────────────────────────────
   const isBranded = variant === "branded" && !children;
-  const className = isBranded ? "eto-card eto-card--branded" : "eto-card";
+  const className = [
+    "eto-card",
+    isBranded ? "eto-card--branded" : "",
+    animClass,
+  ].filter(Boolean).join(" ");
 
-  // Accent override is wired via CSS custom property so child elements
-  // can read it through the cascade without prop-drilling.
   const styleWithAccent: React.CSSProperties = {
     ...positionStyle,
-    ...(accent ? ({ ["--eto-branded-accent" as any]: accent } as React.CSSProperties) : {}),
+    ...(accent ? ({ ["--eto-branded-accent" as string]: accent } as React.CSSProperties) : {}),
   };
 
   return (
@@ -327,9 +235,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Default body (alpha.0 layout; unchanged)
-// ────────────────────────────────────────────────────────────────────────
+// ── Default body ────────────────────────────────────────────────────────
 
 function DefaultCardBody(props: {
   api: TutorialApi<unknown>;
@@ -337,70 +243,40 @@ function DefaultCardBody(props: {
   bodyId: string;
 }) {
   const { api, titleId, bodyId } = props;
-  const { step, index, total, isFirst, isLast, canAdvance, next, prev, close } =
-    api;
+  const { step, index, total, isFirst, isLast, canAdvance, isWaiting, next, prev, close } = api;
   if (!step) return null;
 
   return (
     <>
       <div className="eto-header">
-        <span className="eto-progress">
-          {index + 1} / {total}
-        </span>
-        <button
-          type="button"
-          className="eto-close"
-          onClick={close}
-          aria-label="Close tutorial"
-        >
-          ×
-        </button>
+        <span className="eto-progress">{index + 1} / {total}</span>
+        <button type="button" className="eto-close" onClick={close} aria-label="Close tutorial">×</button>
       </div>
       <div className="eto-body">
-        {step.title && (
-          <h4 id={titleId} className="eto-title">
-            {step.title}
-          </h4>
-        )}
-        {step.body && (
-          <p id={bodyId} className="eto-copy">
-            {step.body}
-          </p>
-        )}
+        {step.title && <h4 id={titleId} className="eto-title">{step.title}</h4>}
+        {step.content ? (
+          <div id={bodyId} className="eto-copy">{step.content}</div>
+        ) : step.body ? (
+          <p id={bodyId} className="eto-copy">{step.body}</p>
+        ) : null}
       </div>
       <div className="eto-footer">
+        <button type="button" className="eto-btn eto-btn-secondary" onClick={prev} disabled={isFirst}>Back</button>
         <button
           type="button"
-          className="eto-btn eto-btn-secondary"
-          onClick={prev}
-          disabled={isFirst}
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          className="eto-btn eto-btn-primary"
+          className={`eto-btn eto-btn-primary${isWaiting ? " eto-waiting" : ""}`}
           onClick={next}
           disabled={!canAdvance}
         >
-          {isLast ? "Done" : "Next"}
+          {isWaiting ? "Waiting…" : isLast ? "Done" : "Next"}
         </button>
       </div>
     </>
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Branded body (alpha.1)
-// ────────────────────────────────────────────────────────────────────────
+// ── Branded body ────────────────────────────────────────────────────────
 
-/**
- * The new default-but-decent layout. Gradient header with logo slot,
- * body with title + copy, progress dots, accent-filled Next button.
- * Everything styled via the `.eto-card--branded` ruleset in styles.css
- * — this component only owns the DOM structure and the i18n of the
- * nav labels.
- */
 function BrandedCardBody(props: {
   api: TutorialApi<unknown>;
   titleId: string;
@@ -411,8 +287,7 @@ function BrandedCardBody(props: {
   hideProgress?: boolean;
 }) {
   const { api, titleId, bodyId, logo, logoAlt, labels, hideProgress } = props;
-  const { step, index, total, isFirst, isLast, canAdvance, next, prev, close } =
-    api;
+  const { step, index, total, isFirst, isLast, canAdvance, isWaiting, next, prev, close } = api;
   if (!step) return null;
 
   const backLabel = labels?.back ?? "Back";
@@ -420,41 +295,25 @@ function BrandedCardBody(props: {
   const doneLabel = labels?.done ?? "Done";
   const closeLabel = labels?.close ?? "Close tutorial";
 
-  // Render the logo — string → <img>, React node → verbatim.
   const logoNode =
     typeof logo === "string" ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={logo}
-        alt={logoAlt ?? ""}
-        className="eto-branded-logo"
-        draggable={false}
-      />
-    ) : (
-      logo ?? null
-    );
+      <img src={logo} alt={logoAlt ?? ""} className="eto-branded-logo" draggable={false} />
+    ) : (logo ?? null);
 
-  // Dots render when total <= 15; numeric fallback keeps the row
-  // legible on longer tours.
   const progressNode = (() => {
     if (hideProgress) return null;
     if (total <= 15) {
       return (
         <div className="eto-branded-progress" aria-hidden="true">
           {Array.from({ length: total }, (_, i) => (
-            <span
-              key={i}
-              className={`eto-branded-dot${i === index ? " eto-active" : ""}`}
-            />
+            <span key={i} className={`eto-branded-dot${i === index ? " eto-active" : ""}`} />
           ))}
         </div>
       );
     }
     return (
       <div className="eto-branded-progress">
-        <span className="eto-branded-progress-numeric">
-          {index + 1} / {total}
-        </span>
+        <span className="eto-branded-progress-numeric">{index + 1} / {total}</span>
       </div>
     );
   })();
@@ -463,12 +322,7 @@ function BrandedCardBody(props: {
     <>
       <div className="eto-branded-header">
         {logoNode}
-        <button
-          type="button"
-          className="eto-branded-close"
-          onClick={close}
-          aria-label={closeLabel}
-        >
+        <button type="button" className="eto-branded-close" onClick={close} aria-label={closeLabel}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="6" y1="6" x2="18" y2="18" />
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -476,34 +330,23 @@ function BrandedCardBody(props: {
         </button>
       </div>
       <div className="eto-branded-body">
-        {step.title && (
-          <h4 id={titleId} className="eto-branded-title">
-            {step.title}
-          </h4>
-        )}
-        {step.body && (
-          <p id={bodyId} className="eto-branded-copy">
-            {step.body}
-          </p>
-        )}
+        {step.title && <h4 id={titleId} className="eto-branded-title">{step.title}</h4>}
+        {step.content ? (
+          <div id={bodyId} className="eto-branded-copy">{step.content}</div>
+        ) : step.body ? (
+          <p id={bodyId} className="eto-branded-copy">{step.body}</p>
+        ) : null}
       </div>
       {progressNode}
       <div className="eto-branded-footer">
+        <button type="button" className="eto-branded-btn eto-branded-btn-back" onClick={prev} disabled={isFirst}>{backLabel}</button>
         <button
           type="button"
-          className="eto-branded-btn eto-branded-btn-back"
-          onClick={prev}
-          disabled={isFirst}
-        >
-          {backLabel}
-        </button>
-        <button
-          type="button"
-          className="eto-branded-btn eto-branded-btn-next"
+          className={`eto-branded-btn eto-branded-btn-next${isWaiting ? " eto-waiting" : ""}`}
           onClick={next}
           disabled={!canAdvance}
         >
-          {isLast ? doneLabel : nextLabel}
+          {isWaiting ? "…" : isLast ? doneLabel : nextLabel}
         </button>
       </div>
     </>

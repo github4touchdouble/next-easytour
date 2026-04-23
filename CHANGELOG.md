@@ -1,10 +1,123 @@
 # Changelog
 
-All notable changes to this project are documented here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
-adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.3.0-alpha.3] — 2026-04-23
 
-## [Unreleased]
+Generalisation release. The library shifts from a headless-only posture
+to batteries-included: CSS-selector targeting, declarative step actions,
+wait conditions, auto-scroll, highlights, and animated transitions —
+all configurable per step in JSON, no custom host code needed.
+
+### Added
+
+- **CSS-selector targeting.** Steps can declare `selector: "#my-element"`
+  to target any element on the page without touching its source code.
+  The library calls `document.querySelector` on step enter and registers
+  the result into the target registry automatically. Hook-based
+  `useTutorialTarget` still works and takes precedence when both are
+  present.
+
+  ```tsx
+  { id: "save", selector: "#save-btn", annotations: { spotlight: true } }
+  ```
+
+- **Step actions.** `step.actions` is an ordered list of declarative
+  side-effects that fire in sequence on step enter. Available actions:
+  `scroll-into-view`, `click`, `focus`, `highlight`, `add-class`,
+  `remove-class`, `set-attribute`, `dispatch`, `wait`. Eliminates
+  custom `onStepEnter` handlers for common tutorial patterns.
+
+  ```tsx
+  actions: [
+    { type: "scroll-into-view", behavior: "smooth" },
+    { type: "wait", ms: 500 },
+    { type: "highlight", pulse: true },
+  ]
+  ```
+
+- **WaitFor conditions.** `step.waitFor` blocks forward navigation
+  until a condition is met. Types: `click` (wait for user click on a
+  target), `input` (wait for text matching a regex), `event` (wait
+  for a custom DOM event), `delay` (wait N milliseconds), `visible`
+  (wait for an element to appear in the DOM), `custom` (poll a
+  predicate function).
+
+  ```tsx
+  waitFor: { type: "click", selector: "#submit-btn" }
+  ```
+
+- **Auto-scroll.** `step.scrollIntoView` (or the global `scrollIntoView`
+  prop on `<Tutorial>`) scrolls the target element into the viewport
+  before rendering the step. Accepts `true` (defaults to
+  `{ behavior: "smooth", block: "center" }`) or a full
+  `ScrollIntoViewOptions` object.
+
+- **Auto-advance.** `step.autoAdvance` (ms) automatically moves to
+  the next step after a delay. Fires after `waitFor` if both are set.
+  Useful for intro/welcome steps that don't require user interaction.
+
+- **Highlight effects.** `step.highlight` renders a pulsing ring
+  around the target element for the duration of the step. Accepts
+  `true` (default pulse in accent colour) or an object with `pulse`,
+  `color`, `padding`, `borderRadius` overrides.
+
+- **Card entrance animations.** Three built-in entrance animations
+  for the card: `"fade"`, `"fade-slide"` (default), `"scale"`.
+  Configurable per step via `step.transition` or globally via the
+  `transition` prop on `<Tutorial>`.
+
+- **Arrow draw-on animation.** The Bézier arrow animates its stroke
+  from source to tip over 400ms using SVG `stroke-dashoffset`. Opt
+  out per arrow via `arrow.style.animated: false`.
+
+- **`step.content` JSX body.** Steps can provide a React node as
+  `content` which takes precedence over the `body` string. Useful
+  for steps that need inline links, images, or interactive elements.
+
+- **`<Tooltip>` component.** A lightweight popover alternative to
+  `<Card>` for simple annotations. Positions itself relative to the
+  target (top/bottom/left/right) with no navigation controls — ideal
+  for auto-advancing or context-only steps.
+
+- **`isWaiting` on TutorialApi.** `useTutorial()` now exposes
+  `isWaiting: boolean` so custom cards can render a waiting indicator.
+
+- **`getTargetElement()` on TutorialApi.** Returns the resolved
+  target element (checking hook registry first, then CSS selector).
+  Useful for host code that needs to interact with the target.
+
+- **`onWaitComplete` callback.** Fires when a `waitFor` condition
+  transitions from pending to satisfied.
+
+- **`"waiting"` status.** The tutorial status machine adds a
+  `"waiting"` state when a `waitFor` condition is active.
+
+### Changed
+
+- **Default card animation** is `"fade-slide"` (was `"fade"`).
+- **Spotlight cutouts** smoothly transition position/size between
+  steps via CSS transitions (300ms ease).
+- **Target resolution** now checks both the hook registry and CSS
+  selectors for all overlay components (Arrow, Spotlight, Circles).
+- **`CardRenderArgs`** includes `isWaiting: boolean`.
+
+### Migration from alpha.2
+
+Existing alpha.2 consumers:
+
+- All existing code works without changes. The new features are
+  additive — `selector`, `actions`, `waitFor`, `autoAdvance`,
+  `highlight`, `transition`, `content`, and `scrollIntoView` are all
+  optional fields that default to the alpha.2 behaviour when absent.
+- The card now applies `"fade-slide"` animation by default. Pass
+  `transition={{ enter: "fade" }}` to restore the alpha.2 opacity-only
+  entrance.
+- `<Card>` render-prop args now include `isWaiting`. TypeScript
+  consumers may see a type error if their custom card destructures
+  exhaustively — add `isWaiting` to the destructure.
+
+## [0.3.0-alpha.2] — 2026-04-23
+
+Internal build iteration. No functional changes from alpha.1.
 
 ## [0.3.0-alpha.1] — 2026-04-23
 

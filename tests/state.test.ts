@@ -30,6 +30,7 @@ describe("computeSnapshot", () => {
       stepId: null,
       transitioning: false,
       canAdvance: true,
+      isWaiting: false,
     });
     expect(snap.status).toBe("closed");
     expect(snap.step).toBeNull();
@@ -44,6 +45,7 @@ describe("computeSnapshot", () => {
       stepId: "b",
       transitioning: false,
       canAdvance: true,
+      isWaiting: false,
     });
     expect(snap.status).toBe("running");
     expect(snap.step?.id).toBe("b");
@@ -59,6 +61,7 @@ describe("computeSnapshot", () => {
       stepId: "a",
       transitioning: false,
       canAdvance: true,
+      isWaiting: false,
     });
     expect(snap.isFirst).toBe(true);
   });
@@ -69,6 +72,7 @@ describe("computeSnapshot", () => {
       stepId: "c",
       transitioning: false,
       canAdvance: true,
+      isWaiting: false,
     });
     expect(snap.isLast).toBe(true);
   });
@@ -79,6 +83,7 @@ describe("computeSnapshot", () => {
       stepId: "b",
       transitioning: true,
       canAdvance: true,
+      isWaiting: false,
     });
     expect(snap.status).toBe("transitioning");
   });
@@ -89,6 +94,7 @@ describe("computeSnapshot", () => {
       stepId: "b",
       transitioning: false,
       canAdvance: false,
+      isWaiting: false,
     });
     expect(snap.status).toBe("blocked");
     expect(snap.canAdvance).toBe(false);
@@ -100,6 +106,7 @@ describe("computeSnapshot", () => {
       stepId: "nonexistent",
       transitioning: false,
       canAdvance: true,
+      isWaiting: false,
     });
     // index is -1 (findIndex returned -1), step is null → closed.
     expect(snap.status).toBe("closed");
@@ -129,6 +136,7 @@ describe("computeNext", () => {
       steps: threeSteps,
       stepId: "a",
       canAdvance: true,
+      isWaiting: false,
     });
     expect(intent).not.toBeNull();
     expect(intent!.toId).toBe("b");
@@ -142,6 +150,7 @@ describe("computeNext", () => {
       steps: threeSteps,
       stepId: "c",
       canAdvance: true,
+      isWaiting: false,
     });
     expect(intent).not.toBeNull();
     expect(intent!.toId).toBeNull();
@@ -173,6 +182,7 @@ describe("computePrev", () => {
       steps: threeSteps,
       stepId: "b",
       canAdvance: true,
+      isWaiting: false,
     });
     expect(intent).not.toBeNull();
     expect(intent!.toId).toBe("a");
@@ -184,6 +194,7 @@ describe("computePrev", () => {
       steps: threeSteps,
       stepId: "c",
       canAdvance: false,
+      isWaiting: false,
     });
     expect(intent).not.toBeNull();
     expect(intent!.toId).toBe("b");
@@ -246,6 +257,7 @@ describe("computeClose", () => {
       steps: threeSteps,
       stepId: "b",
       canAdvance: true,
+      isWaiting: false,
     });
     expect(intent).not.toBeNull();
     expect(intent!.toId).toBeNull();
@@ -286,5 +298,77 @@ describe("validateSteps", () => {
       { id: "a", annotations: { spotlight: true }, targets: ["x"] },
     ]);
     expect(warnings).toEqual([]);
+  });
+
+  it("accepts a step with content (JSX body)", () => {
+    const warnings = validateSteps([
+      { id: "a", content: "some jsx" },
+    ]);
+    expect(warnings).toEqual([]);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// isWaiting (alpha.3)
+// ────────────────────────────────────────────────────────────────────────
+
+describe("computeSnapshot — isWaiting (alpha.3)", () => {
+  it("status=waiting when isWaiting is true", () => {
+    const snap = computeSnapshot({
+      steps: threeSteps,
+      stepId: "b",
+      transitioning: false,
+      canAdvance: true,
+      isWaiting: true,
+    });
+    expect(snap.status).toBe("waiting");
+    expect(snap.isWaiting).toBe(true);
+    expect(snap.canAdvance).toBe(false); // blocked while waiting
+  });
+
+  it("canAdvance is false while waiting even if canAdvance input is true", () => {
+    const snap = computeSnapshot({
+      steps: threeSteps,
+      stepId: "a",
+      transitioning: false,
+      canAdvance: true,
+      isWaiting: true,
+    });
+    expect(snap.canAdvance).toBe(false);
+  });
+
+  it("transitioning takes priority over waiting", () => {
+    const snap = computeSnapshot({
+      steps: threeSteps,
+      stepId: "b",
+      transitioning: true,
+      canAdvance: true,
+      isWaiting: true,
+    });
+    expect(snap.status).toBe("transitioning");
+  });
+
+  it("isWaiting=false and canAdvance=false yields blocked (not waiting)", () => {
+    const snap = computeSnapshot({
+      steps: threeSteps,
+      stepId: "b",
+      transitioning: false,
+      canAdvance: false,
+      isWaiting: false,
+    });
+    expect(snap.status).toBe("blocked");
+  });
+
+  it("isWaiting=false leaves status as running", () => {
+    const snap = computeSnapshot({
+      steps: threeSteps,
+      stepId: "b",
+      transitioning: false,
+      canAdvance: true,
+      isWaiting: false,
+    });
+    expect(snap.status).toBe("running");
+    expect(snap.isWaiting).toBe(false);
+    expect(snap.canAdvance).toBe(true);
   });
 });
