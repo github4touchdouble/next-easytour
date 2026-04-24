@@ -1,6 +1,6 @@
 {
   "name": "next-easytour",
-  "version": "0.3.0-alpha.6",
+  "version": "0.3.0-alpha.7",
   "description": "Generalizable interactive tutorial overlay library for React/Next.js. CSS-selector targeting, step actions, waitFor conditions, auto-scroll, highlight effects, animated transitions — all composable and declarative.",
   "keywords": [
     "tutorial",

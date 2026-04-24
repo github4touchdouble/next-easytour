@@ -3,6 +3,7 @@
 // Core
 export { Tutorial, useTutorial } from "./core/Tutorial";
 export { useTutorialTarget } from "./core/useTutorialTarget";
+export { OverlayPortal } from "./core/OverlayPortal";
 
 // Overlay
 export { Card } from "./overlay/Card";

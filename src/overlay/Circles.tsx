@@ -10,6 +10,7 @@
 
 import * as React from "react";
 import { useTutorial } from "../core/Tutorial";
+import { OverlayPortal } from "../core/OverlayPortal";
 import { useTargetRect } from "../core/useTargetRect";
 import type { Circle } from "../types";
 
@@ -39,6 +40,7 @@ export function Circles(props: CirclesProps) {
   if (!rect || rect.width === 0 || rect.height === 0) return null;
 
   return (
+    <OverlayPortal>
     <svg className="eto-circles-svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       {circles.map((c, i) => (
         <CircleAnnotation
@@ -52,6 +54,7 @@ export function Circles(props: CirclesProps) {
         />
       ))}
     </svg>
+    </OverlayPortal>
   );
 }
 

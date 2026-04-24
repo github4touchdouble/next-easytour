@@ -14,6 +14,7 @@
 import * as React from "react";
 import { useMemo } from "react";
 import { useTutorial } from "../core/Tutorial";
+import { OverlayPortal } from "../core/OverlayPortal";
 import { useTargetRect } from "../core/useTargetRect";
 import type { Rect } from "../core/useTargetRect";
 
@@ -72,6 +73,7 @@ export function Tooltip(props: TooltipProps) {
   if (!style) return null;
 
   return (
+    <OverlayPortal>
     <div
       className={`eto-tooltip${className ? ` ${className}` : ""}`}
       style={style}
@@ -89,5 +91,6 @@ export function Tooltip(props: TooltipProps) {
         </button>
       )}
     </div>
+    </OverlayPortal>
   );
 }

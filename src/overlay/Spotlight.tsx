@@ -12,6 +12,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { useTutorial } from "../core/Tutorial";
+import { OverlayPortal } from "../core/OverlayPortal";
 import { useTargetRect } from "../core/useTargetRect";
 import type { Rect } from "../core/useTargetRect";
 
@@ -70,6 +71,7 @@ export function Spotlight(props: SpotlightProps) {
   const transitionStyle = animate ? "x 300ms ease, y 300ms ease, width 300ms ease, height 300ms ease" : undefined;
 
   return (
+    <OverlayPortal>
     <svg
       className="eto-spotlight-svg"
       xmlns="http://www.w3.org/2000/svg"
@@ -105,5 +107,6 @@ export function Spotlight(props: SpotlightProps) {
         style={{ transition: "opacity 300ms ease" }}
       />
     </svg>
+    </OverlayPortal>
   );
 }

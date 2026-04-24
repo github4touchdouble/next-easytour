@@ -11,6 +11,7 @@
 import * as React from "react";
 import { createContext, useContext, useRef, useEffect, useState } from "react";
 import { useTutorial } from "../core/Tutorial";
+import { OverlayPortal } from "../core/OverlayPortal";
 import { useTargetRect } from "../core/useTargetRect";
 import {
   buildPath,
@@ -116,6 +117,7 @@ export function Arrow(props: ArrowProps) {
     : undefined;
 
   return (
+    <OverlayPortal>
     <svg
       className="eto-arrow-svg"
       xmlns="http://www.w3.org/2000/svg"
@@ -164,5 +166,6 @@ export function Arrow(props: ArrowProps) {
         </text>
       )}
     </svg>
+    </OverlayPortal>
   );
 }

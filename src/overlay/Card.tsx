@@ -20,6 +20,7 @@ import {
   useRef,
 } from "react";
 import { useTutorial } from "../core/Tutorial";
+import { OverlayPortal } from "../core/OverlayPortal";
 import { useCardRectSetter } from "./Arrow";
 import type { Rect } from "../core/useTargetRect";
 import type { TutorialApi, CardVariant, BrandedCardProps, TransitionConfig } from "../types";
@@ -207,6 +208,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   };
 
   return (
+    <OverlayPortal>
     <div
       ref={cardRef}
       className={className}
@@ -238,6 +240,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
         />
       )}
     </div>
+    </OverlayPortal>
   );
 }
 

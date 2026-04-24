@@ -26,6 +26,7 @@ import { useTutorial } from "../core/Tutorial";
 import { useTargetRect } from "../core/useTargetRect";
 import { useCardRect } from "../overlay/Arrow";
 import { useEditor } from "./Editor";
+import { OverlayPortal } from "../core/OverlayPortal";
 import {
   clampViewportAnchor,
   pxToTargetPoint,
@@ -82,11 +83,13 @@ export function EditorHandles() {
   if (!editor || !editor.active || !step) return null;
 
   return (
+    <OverlayPortal>
     <>
       <EditorToolbar />
       {step.annotations?.arrow && <ArrowTipHandle />}
       <ArrowDragPreview />
     </>
+    </OverlayPortal>
   );
 }
 
