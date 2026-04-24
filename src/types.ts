@@ -158,6 +158,16 @@ export interface TutorialProps<Meta = never> {
   /** Default card position for all steps. Steps with their own `cardAnchor` override this. */
   defaultCardAnchor?: ViewportAnchor;
 
+  /**
+   * How the card is positioned:
+   * - `"fixed"` (default): pinned to the viewport (stays on screen during scroll)
+   * - `"absolute"`: positioned relative to the page (scrolls with the page)
+   *
+   * When `"absolute"`, anchor x/y are interpreted as page pixels (px from
+   * document top-left) instead of viewport percentages (vw/vh).
+   */
+  cardPositioning?: "fixed" | "absolute";
+
   children: React.ReactNode;
 }
 
@@ -179,6 +189,8 @@ export interface TutorialApi<Meta = never> {
   getTargetElement: (targetIdOrSelector?: string) => Element | null;
   /** Default card position for all steps. */
   defaultCardAnchor?: ViewportAnchor;
+  /** Card positioning mode. */
+  cardPositioning: "fixed" | "absolute";
 }
 
 // ── Editor types ────────────────────────────────────────────────────────

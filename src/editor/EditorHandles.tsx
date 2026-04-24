@@ -97,12 +97,14 @@ export function EditorHandles() {
 
 function EditorToolbar() {
   const editor = useEditor()!;
-  const { step } = useTutorial();
+  const { step, cardPositioning } = useTutorial();
   const cardRect = useCardRect();
   const [draggingCard, setDraggingCard] = useState(false);
   const [draggingArrow, setDraggingArrow] = useState(false);
   const cardRectRef = useRef(cardRect);
   cardRectRef.current = cardRect;
+
+  const isAbsolute = cardPositioning === "absolute";
 
   const targetId = step?.targets?.[0] ?? step?.selector ?? null;
   const targetRect = useTargetRect(targetId);
@@ -127,17 +129,24 @@ function EditorToolbar() {
       const offsetY = e.clientY - rect.top;
 
       const onMove = (ev: MouseEvent) => {
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const raw = pxToViewportAnchor(
-          { x: ev.clientX - offsetX, y: ev.clientY - offsetY },
-          { width: vw, height: vh },
-        );
-        const cr = cardRectRef.current;
-        const clamped = cr
-          ? clampViewportAnchor(raw, { width: cr.width, height: cr.height }, { width: vw, height: vh })
-          : raw;
-        editor.setCardAnchor(step.id, clamped);
+        if (isAbsolute) {
+          // Page coordinates: clientX + scrollX
+          const pageX = ev.clientX - offsetX + window.scrollX;
+          const pageY = ev.clientY - offsetY + window.scrollY;
+          editor.setCardAnchor(step.id, { space: "viewport", x: pageX, y: pageY });
+        } else {
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          const raw = pxToViewportAnchor(
+            { x: ev.clientX - offsetX, y: ev.clientY - offsetY },
+            { width: vw, height: vh },
+          );
+          const cr = cardRectRef.current;
+          const clamped = cr
+            ? clampViewportAnchor(raw, { width: cr.width, height: cr.height }, { width: vw, height: vh })
+            : raw;
+          editor.setCardAnchor(step.id, clamped);
+        }
       };
       const onUp = () => {
         setDraggingCard(false);
@@ -224,16 +233,19 @@ function EditorToolbar() {
 
   // Position toolbar ABOVE the card. If card is near the top of
   // the viewport (<44px), flip below instead.
-  const toolbarLeft = cardRect.left;
-  const above = cardRect.top - 40;
-  const below = cardRect.top + cardRect.height + 6;
-  const toolbarTop = above >= 4 ? above : below;
+  // In absolute mode, convert viewport coords to page coords.
+  const scrollX = isAbsolute ? window.scrollX : 0;
+  const scrollY = isAbsolute ? window.scrollY : 0;
+  const toolbarLeft = cardRect.left + scrollX;
+  const above = cardRect.top - 40 + scrollY;
+  const below = cardRect.top + cardRect.height + 6 + scrollY;
+  const toolbarTop = (cardRect.top - 40) >= 4 ? above : below;
 
   return (
     <div
       className="eto-editor-toolbar"
       style={{
-        position: "fixed",
+        position: isAbsolute ? "absolute" : "fixed",
         left: toolbarLeft,
         top: toolbarTop,
         zIndex: 61,
@@ -315,8 +327,9 @@ function EditorToolbar() {
  */
 function ArrowTipHandle() {
   const editor = useEditor()!;
-  const { step } = useTutorial();
+  const { step, cardPositioning } = useTutorial();
   const [dragging, setDragging] = useState(false);
+  const isAbsolute = cardPositioning === "absolute";
 
   const arrow = step?.annotations?.arrow;
   const targetId = step?.targets?.[0] ?? step?.selector ?? null;
@@ -364,9 +377,9 @@ function ArrowTipHandle() {
       aria-label="Drag to move the arrow tip"
       className={`eto-editor-tip-handle${dragging ? " eto-dragging" : ""}`}
       style={{
-        position: "fixed",
-        left: tip.x - 10,
-        top: tip.y - 10,
+        position: isAbsolute ? "absolute" : "fixed",
+        left: tip.x - 10 + (isAbsolute ? window.scrollX : 0),
+        top: tip.y - 10 + (isAbsolute ? window.scrollY : 0),
       }}
       onMouseDown={onMouseDown}
       title="Drag to re-aim the arrow"

@@ -94,8 +94,11 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
     transition: globalTransition,
     scrollIntoView: globalScrollIntoView,
     defaultCardAnchor,
+    cardPositioning: cardPositioningProp,
     children,
   } = props;
+
+  const cardPositioning = cardPositioningProp ?? "fixed";
 
   // ── Validation (dev-only) ─────────────────────────────────────────────
   const validatedRef = useRef(false);
@@ -395,8 +398,9 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
       close,
       getTargetElement,
       defaultCardAnchor,
+      cardPositioning,
     }),
-    [snapshot, next, prev, goto, close, getTargetElement, defaultCardAnchor],
+    [snapshot, next, prev, goto, close, getTargetElement, defaultCardAnchor, cardPositioning],
   );
 
   // ── Card rect store ───────────────────────────────────────────────────

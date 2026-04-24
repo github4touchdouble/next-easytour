@@ -69,7 +69,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   const api = useTutorial<Meta>();
   const {
     step, index, total, isFirst, isLast, canAdvance, isWaiting,
-    next, prev, close, defaultCardAnchor,
+    next, prev, close, defaultCardAnchor, cardPositioning,
   } = api;
 
   const baseId = useId();
@@ -154,32 +154,35 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   const animClass = enterAnim === "none" ? "" : ` eto-card--${enterAnim}`;
 
   // ── Positioning style ────────────────────────────────────────────────
+  const isAbsolute = cardPositioning === "absolute";
   const positionStyle = useMemo<React.CSSProperties>(() => {
+    const pos = isAbsolute ? "absolute" : "fixed";
     // Priority: step.cardAnchor > defaultCardAnchor > computed default
     const anchor = step?.cardAnchor ?? defaultCardAnchor;
     if (anchor) {
-      return {
-        position: "fixed",
-        left: `${anchor.x}vw`,
-        top: `${anchor.y}vh`,
-      };
+      if (isAbsolute) {
+        // x/y are page pixels
+        return { position: pos, left: `${anchor.x}px`, top: `${anchor.y}px` };
+      }
+      // x/y are viewport percentages
+      return { position: pos, left: `${anchor.x}vw`, top: `${anchor.y}vh` };
     }
     const hasTargets = (step?.targets?.length ?? 0) > 0 || !!step?.selector;
     if (!hasTargets) {
       return {
-        position: "fixed",
+        position: pos,
         left: "50%",
         top: "50%",
         transform: "translate(-50%, -50%)",
       };
     }
     return {
-      position: "fixed",
+      position: pos,
       left: "50%",
       bottom: "1.5rem",
       transform: "translateX(-50%)",
     };
-  }, [step?.cardAnchor, step?.targets, step?.selector, defaultCardAnchor]);
+  }, [step?.cardAnchor, step?.targets, step?.selector, defaultCardAnchor, isAbsolute]);
 
   if (!step) return null;
 
