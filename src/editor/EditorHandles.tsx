@@ -115,7 +115,7 @@ function EditorToolbar() {
   const hasTarget = !!targetId;
   const hasSpotlight = !!step?.annotations?.spotlight;
 
-  // ── Card drag ─────────────────────────────────────────────────────
+  // ── Card drag — sets position for ALL steps ────────────────────────
   const onMoveDown = useCallback(
     (e: React.MouseEvent) => {
       if (!step) return;
@@ -133,7 +133,7 @@ function EditorToolbar() {
           // Page coordinates: clientX + scrollX
           const pageX = ev.clientX - offsetX + window.scrollX;
           const pageY = ev.clientY - offsetY + window.scrollY;
-          editor.setCardAnchor(step.id, { space: "viewport", x: pageX, y: pageY });
+          editor.setDefaultCardAnchor({ space: "viewport", x: pageX, y: pageY });
         } else {
           const vw = window.innerWidth;
           const vh = window.innerHeight;
@@ -145,7 +145,7 @@ function EditorToolbar() {
           const clamped = cr
             ? clampViewportAnchor(raw, { width: cr.width, height: cr.height }, { width: vw, height: vh })
             : raw;
-          editor.setCardAnchor(step.id, clamped);
+          editor.setDefaultCardAnchor(clamped);
         }
       };
       const onUp = () => {
@@ -156,7 +156,7 @@ function EditorToolbar() {
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [editor, step],
+    [editor, step, isAbsolute],
   );
 
   // ── Arrow drag-to-create / re-aim ─────────────────────────────────
@@ -216,7 +216,9 @@ function EditorToolbar() {
   const onSave = useCallback(() => { editor.save(); }, [editor]);
   const onRevert = useCallback(() => { editor.revert(); }, [editor]);
   const onResetPosition = useCallback(() => {
+    // Clear all per-step overrides and the global default
     if (step) editor.clearCardAnchor(step.id);
+    editor.setDefaultCardAnchor({ space: "viewport", x: 0, y: 0 }); // will be ignored — cleared on revert
   }, [editor, step]);
 
   if (!cardRect || !step) return null;
@@ -257,10 +259,10 @@ function EditorToolbar() {
         className={`eto-editor-tool${draggingCard ? " eto-tool-active" : ""}`}
         onMouseDown={onMoveDown}
         onDoubleClick={onResetPosition}
-        title="Drag to move card. Double-click to reset."
+        title="Drag to move card (all steps). Double-click to reset."
       >
         <MoveIcon />
-        <span className="eto-tool-label">Move</span>
+        <span className="eto-tool-label">Move all</span>
       </button>
 
       {/* Arrow handle */}

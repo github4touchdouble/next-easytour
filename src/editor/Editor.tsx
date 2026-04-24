@@ -51,6 +51,8 @@ interface Overrides {
   addedSteps: Step<unknown>[];
   /** alpha.7: step IDs marked for removal */
   removedIds: string[];
+  /** alpha.8: global card position for all steps without their own override. */
+  defaultCardAnchor?: ViewportAnchor;
 }
 
 const EMPTY_OVERRIDES: Overrides = {
@@ -61,6 +63,7 @@ const EMPTY_OVERRIDES: Overrides = {
   stepEdits: {},
   addedSteps: [],
   removedIds: [],
+  defaultCardAnchor: undefined,
 };
 
 function unsavedCountOf(o: Overrides): number {
@@ -71,7 +74,8 @@ function unsavedCountOf(o: Overrides): number {
     Object.keys(o.newArrows).length +
     Object.keys(o.stepEdits).length +
     o.addedSteps.length +
-    o.removedIds.length
+    o.removedIds.length +
+    (o.defaultCardAnchor ? 1 : 0)
   );
 }
 
@@ -101,7 +105,8 @@ function mergeOverrides<Meta>(steps: Step<Meta>[], o: Overrides): Step<Meta>[] {
 
   // 2. Apply overrides + stepEdits
   result = result.map((s) => {
-    const cardAnchor = o.cardAnchors[s.id] ?? s.cardAnchor;
+    // Per-step cardAnchor > step's own > global default override
+    const cardAnchor = o.cardAnchors[s.id] ?? s.cardAnchor ?? o.defaultCardAnchor;
     const arrowTipOverride = o.arrowTips[s.id];
     const circlesOverride = o.circles[s.id];
     const newArrowOverride = o.newArrows[s.id];
@@ -112,7 +117,8 @@ function mergeOverrides<Meta>(steps: Step<Meta>[], o: Overrides): Step<Meta>[] {
       arrowTipOverride !== undefined ||
       circlesOverride !== undefined ||
       newArrowOverride !== undefined ||
-      edit !== undefined;
+      edit !== undefined ||
+      (o.defaultCardAnchor !== undefined && !s.cardAnchor);
 
     if (!hasAnyOverride) return s;
 
@@ -189,6 +195,8 @@ export interface EditorInternalApi {
   removeStep: (stepId: string) => void;
   /** alpha.7: move a step up or down */
   moveStep: (stepId: string, direction: "up" | "down") => void;
+  /** alpha.8: set card position for ALL steps (global default). */
+  setDefaultCardAnchor: (a: ViewportAnchor) => void;
   save: () => Promise<void>;
   revert: () => void;
   saveStatus: EditorState["saveStatus"];
@@ -320,6 +328,10 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
     });
   }, [baseSteps]);
 
+  const setDefaultCardAnchor = useCallback((a: ViewportAnchor) => {
+    setOverrides((p) => ({ ...p, defaultCardAnchor: a }));
+  }, []);
+
   const revert = useCallback(() => {
     setOverrides(EMPTY_OVERRIDES);
     setSaveStatus("idle");
@@ -366,11 +378,11 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
       steps: mergedSteps as Step<unknown>[],
       setCardAnchor, clearCardAnchor, setArrowTip, setArrow, setCircles,
       updateStep, addStep, removeStep, moveStep,
-      save, revert, saveStatus,
+      setDefaultCardAnchor, save, revert, saveStatus,
     }),
     [active, overrides, mergedSteps, setCardAnchor, clearCardAnchor,
      setArrowTip, setArrow, setCircles, updateStep, addStep, removeStep,
-     moveStep, save, revert, saveStatus],
+     moveStep, setDefaultCardAnchor, save, revert, saveStatus],
   );
 
   return (
