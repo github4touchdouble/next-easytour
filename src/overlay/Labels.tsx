@@ -3,22 +3,17 @@
 /**
  * @module overlay/Labels
  *
- * Alpha.16: text annotations with animated frame sequences.
- *
- * Each label can define an `animation` with multiple frames — the text
- * (and optionally variant/color) cycles through the frames on a timer.
- * Transitions are CSS-driven: "fade" crossfades, "slide-up" slides.
- *
- * Labels are draggable in editor mode and use absolute positioning
- * when `cardPositioning="absolute"`.
+ * Alpha.17: uses the animation engine's `useFrameSequence` for text
+ * cycling. No DOM remounting, no flicker. CSS classes drive transitions.
  */
 
 import * as React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTutorial } from "../core/Tutorial";
 import { OverlayPortal } from "../core/OverlayPortal";
 import { useTargetRect } from "../core/useTargetRect";
 import { useEditor } from "../editor/Editor";
+import { useFrameSequence, useEnterAnimation } from "../core/animation";
 import { pxToTargetPoint, targetPointToPx } from "../coords";
 import type { Annotations, TextLabel, TextLabelFrame } from "../types";
 
@@ -34,8 +29,6 @@ export function Labels() {
   const isAbsolute = cardPositioning === "absolute";
   const isEditing = !!editor?.active;
 
-  // When no target exists or hasn't registered yet, use the viewport
-  // (or page) as the bounding rect so labels still render.
   const fallbackRect = typeof window !== "undefined"
     ? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
     : { left: 0, top: 0, width: 1000, height: 800 };
@@ -60,7 +53,7 @@ export function Labels() {
   );
 }
 
-// ── Single label with animation support ─────────────────────────────────
+// ── Single label ────────────────────────────────────────────────────────
 
 function LabelElement({ label, index, stepId, targetRect, isAbsolute, isEditing, annotations, allLabels }: {
   label: TextLabel;
@@ -78,75 +71,32 @@ function LabelElement({ label, index, stepId, targetRect, isAbsolute, isEditing,
   const targetRectRef = useRef(targetRect);
   targetRectRef.current = targetRect;
 
-  // ── Animation state ───────────────────────────────────────────────
+  // ── Animation via the engine ──────────────────────────────────────
   const anim = label.animation;
-  const [frameIndex, setFrameIndex] = useState(0);
-  const [transitioning, setTransitioning] = useState(false);
+  const frames = anim?.frames ?? [];
+  const hasAnimation = frames.length > 1;
 
-  // Reset animation on step/label change
-  useEffect(() => {
-    setFrameIndex(0);
-    setTransitioning(false);
-  }, [stepId, index]);
+  // Build the frames array — if no animation, single frame from label props
+  const effectiveFrames: TextLabelFrame[] = hasAnimation
+    ? frames
+    : [{ text: label.text, variant: label.variant, color: label.color, fontSize: label.fontSize }];
 
-  // Frame timer
-  useEffect(() => {
-    if (!anim || anim.frames.length <= 1) return;
+  const { current: frame, phase } = useFrameSequence(effectiveFrames, {
+    frameDuration: anim?.frameDuration ?? 2000,
+    transitionDuration: 300,
+    loop: anim?.loop ?? false,
+    delay: anim?.delay ?? 0,
+    enabled: hasAnimation,
+  });
 
-    const duration = anim.frameDuration ?? 2000;
-    const delay = anim.delay ?? 0;
-    const transition = anim.transition ?? "fade";
-    const transitionMs = transition === "none" ? 0 : 300;
+  // Enter animation for the label itself (on step change)
+  const enterClass = useEnterAnimation(stepId, "eto-label--enter", 300);
 
-    let timer: ReturnType<typeof setTimeout>;
-
-    const advance = () => {
-      // Start transition out
-      if (transition !== "none") {
-        setTransitioning(true);
-      }
-
-      timer = setTimeout(() => {
-        setFrameIndex((prev) => {
-          const next = prev + 1;
-          if (next >= anim.frames.length) {
-            return anim.loop ? 0 : prev; // stay on last frame if not looping
-          }
-          return next;
-        });
-        setTransitioning(false);
-      }, transitionMs);
-    };
-
-    // Initial delay, then cycle
-    const startTimer = setTimeout(() => {
-      const interval = setInterval(advance, duration);
-      return () => clearInterval(interval);
-    }, delay);
-
-    // Also set up interval directly (startTimer returns cleanup)
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-    const delayTimer = setTimeout(() => {
-      intervalId = setInterval(advance, duration);
-    }, delay);
-
-    return () => {
-      clearTimeout(startTimer);
-      clearTimeout(delayTimer);
-      clearTimeout(timer!);
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [stepId, anim]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Resolve current frame ─────────────────────────────────────────
-  const currentFrame: TextLabelFrame | null =
-    anim && anim.frames.length > 0 ? anim.frames[frameIndex] ?? null : null;
-
-  // Merge frame overrides onto base label
-  const displayText = currentFrame?.text ?? label.text;
-  const displayVariant = currentFrame?.variant ?? label.variant ?? "callout";
-  const displayColor = currentFrame?.color ?? label.color;
-  const displayFontSize = currentFrame?.fontSize ?? label.fontSize ?? 12;
+  // ── Resolve display values ────────────────────────────────────────
+  const displayText = frame.text ?? label.text;
+  const displayVariant = frame.variant ?? label.variant ?? "callout";
+  const displayColor = frame.color ?? label.color;
+  const displayFontSize = frame.fontSize ?? label.fontSize ?? 12;
 
   // ── Position ──────────────────────────────────────────────────────
   const pos = targetPointToPx(label.position, targetRect);
@@ -156,9 +106,13 @@ function LabelElement({ label, index, stepId, targetRect, isAbsolute, isEditing,
   const scrollX = isAbsolute ? window.scrollX : 0;
   const scrollY = isAbsolute ? window.scrollY : 0;
 
-  // Transition class
-  const transClass = anim?.transition ?? "fade";
-  const animClass = transitioning ? ` eto-label--${transClass}-out` : (anim ? ` eto-label--${transClass}-in` : "");
+  // Phase → CSS class (delay phase hides the label)
+  const phaseClass = hasAnimation
+    ? phase === "delay" ? " eto-anim--hidden"
+      : phase === "exiting" ? " eto-anim--exit"
+      : phase === "entering" ? " eto-anim--enter"
+      : ""
+    : "";
 
   const style: React.CSSProperties = {
     position: isAbsolute ? "absolute" : "fixed",
@@ -170,10 +124,10 @@ function LabelElement({ label, index, stepId, targetRect, isAbsolute, isEditing,
     zIndex: 52,
     ...(displayColor ? { color: displayColor } : {}),
     ...(isEditing ? { pointerEvents: "auto", cursor: "grab" } : {}),
-    ...(dragging ? { cursor: "grabbing", opacity: 0.8 } : {}),
+    ...(dragging ? { cursor: "grabbing" } : {}),
   };
 
-  // ── Drag handler ──────────────────────────────────────────────────
+  // ── Drag ──────────────────────────────────────────────────────────
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (!isEditing || !editor) return;
@@ -193,7 +147,6 @@ function LabelElement({ label, index, stepId, targetRect, isAbsolute, isEditing,
         newLabels[index] = { ...newLabels[index], position: p };
         editor.updateStep(stepId, { annotations: { ...annotations, labels: newLabels } });
       };
-
       const onUp = () => {
         setDragging(false);
         window.removeEventListener("mousemove", onMove);
@@ -205,11 +158,20 @@ function LabelElement({ label, index, stepId, targetRect, isAbsolute, isEditing,
     [isEditing, editor, index, stepId, annotations, allLabels],
   );
 
+  const className = [
+    "eto-label",
+    `eto-label--${displayVariant}`,
+    enterClass,
+    phaseClass,
+    isEditing ? "eto-label--editable" : "",
+    dragging ? "eto-label--dragging" : "",
+    hover && isEditing ? "eto-label--hover" : "",
+  ].filter(Boolean).join(" ");
+
   return (
     <div
-      className={`eto-label eto-label--${displayVariant}${animClass}${isEditing ? " eto-label--editable" : ""}${dragging ? " eto-label--dragging" : ""}${hover && isEditing ? " eto-label--hover" : ""}`}
+      className={className}
       style={style}
-      key={`${stepId}-${index}-${frameIndex}`} // re-mount on frame change for animation
       onMouseDown={isEditing ? onMouseDown : undefined}
       onMouseEnter={isEditing ? () => setHover(true) : undefined}
       onMouseLeave={isEditing ? () => setHover(false) : undefined}

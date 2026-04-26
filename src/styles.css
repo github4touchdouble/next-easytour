@@ -1058,38 +1058,36 @@
   color: var(--eto-accent);
 }
 
-/* ── Label animation transitions ── */
+/* ── Animation engine classes (alpha.17) ──────────────────────────────
+   Phase classes applied by useFrameSequence and useEnterAnimation.
+   The actual visual transitions are CSS-only. */
 
-.eto-label--fade-in {
-  animation: eto-label-fade-in 300ms ease-out;
-}
-.eto-label--fade-out {
-  animation: eto-label-fade-out 300ms ease-in forwards;
-}
-.eto-label--slide-up-in {
-  animation: eto-label-slide-up-in 300ms ease-out;
-}
-.eto-label--slide-up-out {
-  animation: eto-label-slide-up-out 300ms ease-in forwards;
-}
-.eto-label--none-in,
-.eto-label--none-out {
-  animation: none;
+/* Enter animation for labels appearing on step change */
+.eto-label--enter {
+  animation: eto-label-enter 300ms ease-out;
 }
 
-@keyframes eto-label-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+/* Frame sequence phases — applied by useFrameSequence */
+.eto-anim--hidden {
+  opacity: 0;
+  pointer-events: none;
 }
-@keyframes eto-label-fade-out {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+.eto-anim--enter {
+  animation: eto-anim-enter 300ms ease-out;
 }
-@keyframes eto-label-slide-up-in {
+.eto-anim--exit {
+  animation: eto-anim-exit 300ms ease-in forwards;
+}
+
+@keyframes eto-label-enter {
   from { opacity: 0; transform: translate(-50%, -90%); }
   to   { opacity: 1; transform: translate(-50%, -100%); }
 }
-@keyframes eto-label-slide-up-out {
+@keyframes eto-anim-enter {
+  from { opacity: 0; transform: translate(-50%, -90%); }
+  to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+@keyframes eto-anim-exit {
   from { opacity: 1; transform: translate(-50%, -100%); }
   to   { opacity: 0; transform: translate(-50%, -110%); }
 }

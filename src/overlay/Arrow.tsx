@@ -12,6 +12,7 @@ import * as React from "react";
 import { createContext, useContext, useRef, useEffect, useState } from "react";
 import { useTutorial } from "../core/Tutorial";
 import { OverlayPortal } from "../core/OverlayPortal";
+import { useArrowDraw } from "../core/animation";
 import { useTargetRect } from "../core/useTargetRect";
 import {
   buildPath,
@@ -63,34 +64,23 @@ export function Arrow(props: ArrowProps) {
   const cardRect = useCardRect();
 
   const arrow = step?.annotations?.arrow;
-  // Resolve target: hook-registered ID first, then `step.selector`
   const targetId = step?.targets?.[0] ?? step?.selector ?? null;
   const targetRect = useTargetRect(targetId);
 
-  // Animation state: track path length for stroke-dashoffset animation
+  // Measure path length for the draw-on animation
   const pathRef = useRef<SVGPathElement>(null);
   const [pathLength, setPathLength] = useState(0);
-  const [animated, setAnimated] = useState(false);
-  const prevStepId = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (step?.id !== prevStepId.current) {
-      prevStepId.current = step?.id ?? null;
-      setAnimated(false);
-      // Trigger animation after a frame
-      requestAnimationFrame(() => setAnimated(true));
-    }
-  }, [step?.id]);
 
   useEffect(() => {
     if (pathRef.current) {
-      try {
-        setPathLength(pathRef.current.getTotalLength());
-      } catch {
-        setPathLength(500); // fallback
-      }
+      try { setPathLength(pathRef.current.getTotalLength()); }
+      catch { setPathLength(500); }
     }
   });
+
+  // Draw-on animation via the animation engine
+  const animEnabled = !disableAnimation && (arrow?.style?.animated !== false);
+  const drawAnim = useArrowDraw(pathLength, step?.id ?? null, animEnabled, 400);
 
   if (!step || !arrow) return null;
   if (!cardRect) return null;
@@ -107,14 +97,15 @@ export function Arrow(props: ArrowProps) {
   const d = buildPath(src, tip, style);
 
   const markerId = `eto-arrow-head-${step.id}`;
-  const shouldAnimate = !disableAnimation && (arrow.style?.animated !== false) && animated;
-  const dashStyle: React.CSSProperties | undefined = shouldAnimate && pathLength > 0
+
+  // Apply draw-on animation styles
+  const pathStyle: React.CSSProperties = drawAnim.dashArray
     ? {
-        strokeDasharray: pathLength,
-        strokeDashoffset: 0,
-        animation: `eto-arrow-draw 400ms ease-out`,
+        strokeDasharray: drawAnim.dashArray,
+        strokeDashoffset: drawAnim.dashOffset,
+        transition: drawAnim.transitioning ? `stroke-dashoffset 400ms ease-out` : undefined,
       }
-    : undefined;
+    : {};
 
   return (
     <OverlayPortal>
@@ -147,9 +138,9 @@ export function Arrow(props: ArrowProps) {
         stroke={color}
         strokeWidth={style.strokeWidth}
         strokeLinecap="round"
-        strokeDasharray={style.dashed ? "6 4" : dashStyle?.strokeDasharray?.toString()}
-        strokeDashoffset={dashStyle?.strokeDashoffset}
-        style={!style.dashed ? dashStyle : undefined}
+        strokeDasharray={style.dashed ? "6 4" : pathStyle.strokeDasharray?.toString()}
+        strokeDashoffset={style.dashed ? undefined : pathStyle.strokeDashoffset}
+        style={!style.dashed ? pathStyle : undefined}
         opacity={opacity}
         markerEnd={`url(#${markerId})`}
       />

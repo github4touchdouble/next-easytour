@@ -21,6 +21,7 @@ import {
 } from "react";
 import { useTutorial } from "../core/Tutorial";
 import { OverlayPortal } from "../core/OverlayPortal";
+import { useEnterAnimation } from "../core/animation";
 import { useCardRectSetter } from "./Arrow";
 import type { Rect } from "../core/useTargetRect";
 import type { TutorialApi, CardVariant, BrandedCardProps, TransitionConfig } from "../types";
@@ -150,8 +151,12 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   }, [disableKeyboard, step, next, prev, close]);
 
   // ── Resolve entrance animation class ──────────────────────────────────
-  const enterAnim = step?.transition?.enter ?? transitionProp?.enter ?? "fade-slide";
-  const animClass = enterAnim === "none" ? "" : ` eto-card--${enterAnim}`;
+  const enterAnimType = step?.transition?.enter ?? transitionProp?.enter ?? "fade-slide";
+  const animClass = useEnterAnimation(
+    step?.id ?? null,
+    enterAnimType === "none" ? "" : `eto-card--${enterAnimType}`,
+    step?.transition?.duration ?? transitionProp?.duration ?? 250,
+  );
 
   // ── Positioning style ────────────────────────────────────────────────
   const isAbsolute = cardPositioning === "absolute";
