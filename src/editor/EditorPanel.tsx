@@ -364,9 +364,14 @@ function StepEditor({ step, index, total, editor }: {
 
       {/* ── Text labels ── */}
       <Section title="Text labels">
+        {labels.length > 0 && (
+          <p className="eto-panel-hint">Drag labels directly on the page to reposition.</p>
+        )}
         {labels.map((lbl, i) => (
           <div key={i} className="eto-panel-label-card">
+            {/* Header: index + text + delete */}
             <div className="eto-panel-label-row">
+              <span className="eto-panel-label-idx">{i + 1}</span>
               <input className="eto-panel-input" value={lbl.text}
                 onChange={(e) => updateLabel(i, { text: e.target.value })}
                 placeholder="Label text" />
@@ -375,35 +380,45 @@ function StepEditor({ step, index, total, editor }: {
                 <MiniTrash />
               </button>
             </div>
-            <div className="eto-panel-label-controls">
-              {/* Variant */}
-              <div className="eto-panel-toggles">
-                {(["callout", "badge", "tag", "code", "plain"] as const).map((v) => (
-                  <Pill key={v} label={v} active={( lbl.variant ?? "callout") === v}
-                    onChange={() => updateLabel(i, { variant: v })} />
-                ))}
+
+            {/* Style variant */}
+            <div className="eto-panel-toggles">
+              {(["callout", "badge", "tag", "code", "plain"] as const).map((v) => (
+                <Pill key={v} label={v} active={(lbl.variant ?? "callout") === v}
+                  onChange={() => updateLabel(i, { variant: v })} />
+              ))}
+            </div>
+
+            {/* Live coordinates + quick presets */}
+            <div className="eto-panel-label-position">
+              <div className="eto-panel-label-coords">
+                <span className="eto-panel-coord">
+                  X <strong>{Math.round(lbl.position.x)}</strong>%
+                </span>
+                <span className="eto-panel-coord">
+                  Y <strong>{Math.round(lbl.position.y)}</strong>%
+                </span>
               </div>
-              {/* Position presets */}
-              <div className="eto-panel-label-pos">
-                <span className="eto-panel-field-label">Position</span>
+              <div className="eto-panel-label-quick">
                 {[
-                  { label: "↑ Top", x: 50, y: -5 },
-                  { label: "↓ Bottom", x: 50, y: 105 },
-                  { label: "← Left", x: -5, y: 50 },
-                  { label: "→ Right", x: 105, y: 50 },
-                  { label: "⊙ Center", x: 50, y: 50 },
+                  { tip: "Top", x: 50, y: -5 },
+                  { tip: "Bottom", x: 50, y: 105 },
+                  { tip: "Left", x: -5, y: 50 },
+                  { tip: "Right", x: 105, y: 50 },
+                  { tip: "Center", x: 50, y: 50 },
                 ].map((p) => (
-                  <button key={p.label} type="button"
+                  <button key={p.tip} type="button"
                     className={`eto-panel-pos-btn${lbl.position.x === p.x && lbl.position.y === p.y ? " eto-panel-pos-btn--active" : ""}`}
                     onClick={() => updateLabel(i, { position: targetPoint(p.x, p.y) })}
-                    title={p.label}>
-                    {p.label}
+                    title={p.tip}>
+                    {p.tip}
                   </button>
                 ))}
               </div>
-              <Slider label="Size" value={lbl.fontSize ?? 12} min={9} max={24}
-                onChange={(v) => updateLabel(i, { fontSize: v })} unit="px" />
             </div>
+
+            <Slider label="Size" value={lbl.fontSize ?? 12} min={9} max={24}
+              onChange={(v) => updateLabel(i, { fontSize: v })} unit="px" />
           </div>
         ))}
         <button type="button" className="eto-panel-add-label" onClick={addLabel}>
