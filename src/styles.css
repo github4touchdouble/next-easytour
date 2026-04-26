@@ -806,27 +806,76 @@
   gap: 4px;
   flex-wrap: wrap;
 }
-.eto-panel-toggle-btn {
+.eto-panel-pill {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 9999px;
   font-size: 10px;
   font-weight: 500;
   border: 1px solid var(--eto-border-soft);
   color: var(--eto-muted);
   transition: all 100ms;
+  user-select: none;
 }
-.eto-panel-toggle-btn:hover {
+.eto-panel-pill:hover {
   border-color: var(--eto-accent);
   color: var(--eto-accent);
 }
-.eto-panel-toggle-btn--on {
+.eto-panel-pill--on {
   background: color-mix(in srgb, var(--eto-accent) 12%, transparent);
   border-color: var(--eto-accent);
   color: var(--eto-accent);
   font-weight: 600;
+}
+
+/* Section labels */
+.eto-panel-section-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--eto-muted-soft);
+  margin-top: 4px;
+}
+
+/* Inline field (input + unit) */
+.eto-panel-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+.eto-panel-unit {
+  font-size: 10px;
+  color: var(--eto-muted-soft);
+  flex-shrink: 0;
+}
+
+/* Advanced toggle */
+.eto-panel-advanced-toggle {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--eto-muted-soft);
+  transition: color 100ms;
+}
+.eto-panel-advanced-toggle:hover {
+  color: var(--eto-accent);
+}
+.eto-panel-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 4px 4px;
+  border-left: 2px solid color-mix(in srgb, var(--eto-accent) 15%, transparent);
 }
 
 /* Sections (arrow, etc.) */

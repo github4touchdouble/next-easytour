@@ -3,55 +3,63 @@
 /**
  * @module editor/EditorPanel
  *
- * Alpha.7: Full PowerPoint-style tutorial editor panel. Each step is
- * expandable with inline editing for all properties. Supports add,
- * remove, reorder, and live preview.
+ * Alpha.10: PowerPoint-style step editor panel.
+ *
+ *   - Simple view: toggle overlays on/off, edit text, drag to reorder.
+ *   - Advanced view: raw number fields for arrow tip, bend, card position.
+ *   - Every step expandable — first step works identically to all others.
+ *   - Add / duplicate / delete steps.
  */
 
 import * as React from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTutorial } from "../core/Tutorial";
-import { useEditor } from "./Editor";
+import { useEditor, type EditorInternalApi } from "./Editor";
 import { OverlayPortal } from "../core/OverlayPortal";
 import { targetPoint } from "../coords";
 import type { Step } from "../types";
 
-// ── Icons (inline SVG, no deps) ─────────────────────────────────────────
+// ── Icons ───────────────────────────────────────────────────────────────
 
-const ChevronDown = ({ open }: { open: boolean }) => (
+const Chevron = ({ open }: { open: boolean }) => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms", flexShrink: 0 }}>
+    strokeWidth="2" strokeLinecap="round"
+    style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms", flexShrink: 0 }}>
     <polyline points="6 9 12 15 18 9" />
   </svg>
 );
-const PlusIcon = () => (
+const Plus = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
-const TrashIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" />
-    <path d="M9 6V4h6v2" />
+const Trash = () => (
+  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
   </svg>
 );
-const UpIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+const Up = () => (
+  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <polyline points="18 15 12 9 6 15" />
   </svg>
 );
-const DownIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+const Down = () => (
+  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <polyline points="6 9 12 15 18 9" />
   </svg>
 );
-const CopyIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+const Copy = () => (
+  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 );
+const Gear = () => (
+  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06c.5.5 1.14.7 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.26.68.08 1.36-.33 1.82l-.06.06z" />
+  </svg>
+);
 
-// ── Main export ─────────────────────────────────────────────────────────
+// ── Panel ───────────────────────────────────────────────────────────────
 
 export interface EditorPanelProps {
   side?: "left" | "right";
@@ -69,7 +77,7 @@ export function EditorPanel(props: EditorPanelProps) {
 
   const { step: activeStep, goto } = api;
   const steps = editor.steps;
-  const unsaved = unsavedCountOf(editor.overrides);
+  const unsaved = unsavedCount(editor.overrides);
   const saving = editor.saveStatus === "saving";
   const saved = editor.saveStatus === "saved";
 
@@ -83,29 +91,17 @@ export function EditorPanel(props: EditorPanelProps) {
 
   const onAddStep = () => {
     const id = `step-${Date.now()}`;
-    editor.addStep({
-      id,
-      title: "New step",
-      body: "",
-    });
+    editor.addStep({ id, title: "New step", body: "" });
     setExpandedSteps((prev) => new Set(prev).add(id));
-    // Navigate to it after a tick so the step exists in the list
     setTimeout(() => goto(id), 50);
   };
 
   return (
     <OverlayPortal>
-    <div
-      className="eto-editor-panel"
-      style={{ [side]: 0 }}
-      data-collapsed={collapsed || undefined}
-    >
-      {/* Header */}
+    <div className="eto-editor-panel" style={{ [side]: 0 }} data-collapsed={collapsed || undefined}>
       <div className="eto-panel-header">
-        <button type="button" className="eto-panel-toggle"
-          onClick={() => setCollapsed((c) => !c)}
-          title={collapsed ? "Expand" : "Collapse"}>
-          <ChevronDown open={!collapsed} />
+        <button type="button" className="eto-panel-toggle" onClick={() => setCollapsed((c) => !c)}>
+          <Chevron open={!collapsed} />
         </button>
         {!collapsed && (
           <>
@@ -117,34 +113,25 @@ export function EditorPanel(props: EditorPanelProps) {
 
       {!collapsed && (
         <>
-          {/* Step list */}
           <div className="eto-panel-steps">
             {steps.map((s, i) => (
-              <StepCard
-                key={s.id}
-                step={s}
-                index={i}
-                total={steps.length}
+              <StepCard key={s.id} step={s} index={i} total={steps.length}
                 isActive={activeStep?.id === s.id}
                 isExpanded={expandedSteps.has(s.id)}
                 onToggle={() => toggleExpand(s.id)}
                 onSelect={() => goto(s.id)}
-                editor={editor}
-              />
+                editor={editor} />
             ))}
           </div>
 
-          {/* Add step button */}
           <button type="button" className="eto-panel-add" onClick={onAddStep}>
-            <PlusIcon /> Add step
+            <Plus /> Add step
           </button>
 
-          {/* Footer */}
           <div className="eto-panel-footer">
             <button type="button"
               className={`eto-panel-btn eto-panel-btn--save${saved ? " eto-panel-btn--saved" : ""}`}
-              onClick={() => editor.save()}
-              disabled={unsaved === 0 || saving}>
+              onClick={() => editor.save()} disabled={unsaved === 0 || saving}>
               {saving ? "Saving…" : saved ? "✓ Saved" : `Save${unsaved > 0 ? ` (${unsaved})` : ""}`}
             </button>
             {unsaved > 0 && (
@@ -160,7 +147,7 @@ export function EditorPanel(props: EditorPanelProps) {
   );
 }
 
-// ── Single step card ────────────────────────────────────────────────────
+// ── Step card ───────────────────────────────────────────────────────────
 
 function StepCard({ step, index, total, isActive, isExpanded, onToggle, onSelect, editor }: {
   step: Step<unknown>;
@@ -170,30 +157,29 @@ function StepCard({ step, index, total, isActive, isExpanded, onToggle, onSelect
   isExpanded: boolean;
   onToggle: () => void;
   onSelect: () => void;
-  editor: ReturnType<typeof useEditor> & {};
+  editor: EditorInternalApi;
 }) {
   const hasArrow = !!step.annotations?.arrow;
   const hasSpotlight = !!step.annotations?.spotlight;
+  const hasHighlight = !!step.highlight;
 
   return (
     <div className={`eto-panel-step${isActive ? " eto-panel-step--active" : ""}`}>
-      {/* Step header row */}
       <div className="eto-panel-step-header">
         <button type="button" className="eto-panel-step-expand" onClick={onToggle}>
-          <ChevronDown open={isExpanded} />
+          <Chevron open={isExpanded} />
         </button>
         <button type="button" className="eto-panel-step-select" onClick={onSelect}>
           <span className="eto-panel-step-num">{index + 1}</span>
           <span className="eto-panel-step-title">{step.title || step.id}</span>
         </button>
-        {/* Badges */}
         <span className="eto-panel-step-badges">
           {hasArrow && <span className="eto-panel-badge" title="Arrow">→</span>}
           {hasSpotlight && <span className="eto-panel-badge" title="Spotlight">◎</span>}
+          {hasHighlight && <span className="eto-panel-badge" title="Highlight">◉</span>}
         </span>
       </div>
 
-      {/* Expanded editor */}
       {isExpanded && (
         <StepEditor step={step} index={index} total={total} editor={editor} />
       )}
@@ -201,14 +187,16 @@ function StepCard({ step, index, total, isActive, isExpanded, onToggle, onSelect
   );
 }
 
-// ── Step editor (expanded) ──────────────────────────────────────────────
+// ── Step editor ─────────────────────────────────────────────────────────
 
 function StepEditor({ step, index, total, editor }: {
   step: Step<unknown>;
   index: number;
   total: number;
-  editor: ReturnType<typeof useEditor> & {};
+  editor: EditorInternalApi;
 }) {
+  const [advanced, setAdvanced] = useState(false);
+
   const update = useCallback(
     (patch: Partial<Step<unknown>>) => editor.updateStep(step.id, patch),
     [editor, step.id],
@@ -216,242 +204,163 @@ function StepEditor({ step, index, total, editor }: {
 
   const hasArrow = !!step.annotations?.arrow;
   const hasSpotlight = !!step.annotations?.spotlight;
+  const hasHighlight = !!step.highlight;
 
   return (
     <div className="eto-panel-editor">
-      {/* ID (read-only) */}
-      <FieldRow label="ID">
-        <input className="eto-panel-input eto-panel-input--mono" value={step.id} readOnly />
-      </FieldRow>
-
-      {/* Title */}
-      <FieldRow label="Title">
+      {/* ── Content ── */}
+      <Field label="Title">
         <input className="eto-panel-input" value={step.title ?? ""}
-          onChange={(e) => update({ title: e.target.value })}
-          placeholder="Step title" />
-      </FieldRow>
+          onChange={(e) => update({ title: e.target.value })} placeholder="Step title" />
+      </Field>
 
-      {/* Body */}
-      <FieldRow label="Body">
-        <textarea className="eto-panel-textarea" value={step.body ?? ""} rows={3}
-          onChange={(e) => update({ body: e.target.value })}
-          placeholder="Step description…" />
-      </FieldRow>
+      <Field label="Body">
+        <textarea className="eto-panel-textarea" value={step.body ?? ""} rows={2}
+          onChange={(e) => update({ body: e.target.value })} placeholder="Description…" />
+      </Field>
 
-      {/* Selector */}
-      <FieldRow label="Selector">
+      <Field label="Target">
         <input className="eto-panel-input eto-panel-input--mono" value={step.selector ?? ""}
           onChange={(e) => update({ selector: e.target.value || undefined })}
-          placeholder='[data-tour="my-element"]' />
-      </FieldRow>
+          placeholder='[data-tour="element"]' />
+      </Field>
 
-      {/* Toggles row */}
+      {/* ── Overlays — visual toggles ── */}
+      <div className="eto-panel-section-label">Overlays</div>
       <div className="eto-panel-toggles">
-        <ToggleButton
-          label="Spotlight"
-          active={hasSpotlight}
-          onChange={(on) => update({
-            annotations: { ...(step.annotations ?? {}), spotlight: on },
-          })}
-        />
-        <ToggleButton
-          label="Highlight"
-          active={!!step.highlight}
-          onChange={(on) => update({ highlight: on || undefined })}
-        />
-        <ToggleButton
-          label="Scroll"
-          active={!!step.scrollIntoView}
-          onChange={(on) => update({ scrollIntoView: on || undefined })}
-        />
+        <Pill label="Spotlight" active={hasSpotlight} onChange={(on) =>
+          update({ annotations: { ...(step.annotations ?? {}), spotlight: on } })} />
+        <Pill label="Highlight" active={hasHighlight} onChange={(on) =>
+          update({ highlight: on || undefined })} />
+        <Pill label="Arrow" active={hasArrow} onChange={(on) => {
+          if (on) {
+            update({ annotations: { ...(step.annotations ?? {}), arrow: { to: targetPoint(50, 50) } } });
+          } else {
+            const a = { ...(step.annotations ?? {}) };
+            delete a.arrow;
+            update({ annotations: a });
+          }
+        }} />
+        <Pill label="Auto-scroll" active={!!step.scrollIntoView} onChange={(on) =>
+          update({ scrollIntoView: on || undefined })} />
       </div>
 
-      {/* Arrow section */}
-      <div className="eto-panel-section">
-        <div className="eto-panel-section-header">
-          <ToggleButton
-            label="Arrow"
-            active={hasArrow}
-            onChange={(on) => {
-              if (on) {
-                // Create default arrow
-                update({
-                  annotations: {
-                    ...(step.annotations ?? {}),
-                    arrow: { to: targetPoint(50, 50) },
-                  },
-                });
-              } else {
-                const a = { ...(step.annotations ?? {}) };
-                delete a.arrow;
-                update({ annotations: a });
-              }
-            }}
-          />
-        </div>
-        {hasArrow && (
-          <div className="eto-panel-arrow-fields">
-            <FieldRow label="Tip X%">
-              <input className="eto-panel-input eto-panel-input--narrow" type="number"
-                value={Math.round(step.annotations!.arrow!.to.x)}
-                onChange={(e) => update({
-                  annotations: {
-                    ...step.annotations,
-                    arrow: {
-                      ...step.annotations!.arrow!,
-                      to: targetPoint(Number(e.target.value), step.annotations!.arrow!.to.y),
-                    },
-                  },
-                })} />
-            </FieldRow>
-            <FieldRow label="Tip Y%">
-              <input className="eto-panel-input eto-panel-input--narrow" type="number"
-                value={Math.round(step.annotations!.arrow!.to.y)}
-                onChange={(e) => update({
-                  annotations: {
-                    ...step.annotations,
-                    arrow: {
-                      ...step.annotations!.arrow!,
-                      to: targetPoint(step.annotations!.arrow!.to.x, Number(e.target.value)),
-                    },
-                  },
-                })} />
-            </FieldRow>
-            <FieldRow label="Bend">
-              <input className="eto-panel-input eto-panel-input--narrow" type="number"
-                value={step.annotations?.arrow?.style?.bend ?? 30} min={0} max={80}
-                onChange={(e) => update({
-                  annotations: {
-                    ...step.annotations,
-                    arrow: {
-                      ...step.annotations!.arrow!,
-                      style: { ...(step.annotations?.arrow?.style ?? {}), bend: Number(e.target.value) },
-                    },
-                  },
-                })} />
-            </FieldRow>
-            <div className="eto-panel-toggles">
-              <ToggleButton
-                label="Flip"
-                active={!!step.annotations?.arrow?.style?.flip}
-                onChange={(on) => update({
-                  annotations: {
-                    ...step.annotations,
-                    arrow: {
-                      ...step.annotations!.arrow!,
-                      style: { ...(step.annotations?.arrow?.style ?? {}), flip: on },
-                    },
-                  },
-                })}
-              />
-              <ToggleButton
-                label="Dashed"
-                active={!!step.annotations?.arrow?.style?.dashed}
-                onChange={(on) => update({
-                  annotations: {
-                    ...step.annotations,
-                    arrow: {
-                      ...step.annotations!.arrow!,
-                      style: { ...(step.annotations?.arrow?.style ?? {}), dashed: on },
-                    },
-                  },
-                })}
-              />
-              <ToggleButton
-                label="Loop"
-                active={!!step.annotations?.arrow?.style?.loopEnd}
-                onChange={(on) => update({
-                  annotations: {
-                    ...step.annotations,
-                    arrow: {
-                      ...step.annotations!.arrow!,
-                      style: { ...(step.annotations?.arrow?.style ?? {}), loopEnd: on },
-                    },
-                  },
-                })}
-              />
-            </div>
-            <FieldRow label="Label">
-              <input className="eto-panel-input" value={step.annotations?.arrow?.label ?? ""}
-                onChange={(e) => update({
-                  annotations: {
-                    ...step.annotations,
-                    arrow: { ...step.annotations!.arrow!, label: e.target.value || undefined },
-                  },
-                })}
-                placeholder="Arrow label" />
-            </FieldRow>
+      {/* Arrow style pills (shown when arrow is on) */}
+      {hasArrow && (
+        <>
+          <div className="eto-panel-section-label">Arrow style</div>
+          <div className="eto-panel-toggles">
+            <Pill label="Flip" active={!!step.annotations?.arrow?.style?.flip} onChange={(on) =>
+              update({ annotations: { ...step.annotations, arrow: { ...step.annotations!.arrow!, style: { ...(step.annotations?.arrow?.style ?? {}), flip: on } } } })} />
+            <Pill label="Dashed" active={!!step.annotations?.arrow?.style?.dashed} onChange={(on) =>
+              update({ annotations: { ...step.annotations, arrow: { ...step.annotations!.arrow!, style: { ...(step.annotations?.arrow?.style ?? {}), dashed: on } } } })} />
+            <Pill label="Loop end" active={!!step.annotations?.arrow?.style?.loopEnd} onChange={(on) =>
+              update({ annotations: { ...step.annotations, arrow: { ...step.annotations!.arrow!, style: { ...(step.annotations?.arrow?.style ?? {}), loopEnd: on } } } })} />
           </div>
-        )}
-      </div>
+          <Field label="Label">
+            <input className="eto-panel-input" value={step.annotations?.arrow?.label ?? ""}
+              onChange={(e) => update({ annotations: { ...step.annotations, arrow: { ...step.annotations!.arrow!, label: e.target.value || undefined } } })}
+              placeholder="Arrow label" />
+          </Field>
+        </>
+      )}
 
-      {/* Auto-advance */}
-      <FieldRow label="Auto-advance (ms)">
-        <input className="eto-panel-input eto-panel-input--narrow" type="number"
-          value={step.autoAdvance ?? ""} min={0} step={500}
-          onChange={(e) => update({ autoAdvance: e.target.value ? Number(e.target.value) : undefined })}
-          placeholder="off" />
-      </FieldRow>
+      {/* ── Timing ── */}
+      <Field label="Auto-advance">
+        <div className="eto-panel-inline">
+          <input className="eto-panel-input eto-panel-input--narrow" type="number"
+            value={step.autoAdvance ?? ""} min={0} step={500}
+            onChange={(e) => update({ autoAdvance: e.target.value ? Number(e.target.value) : undefined })}
+            placeholder="off" />
+          <span className="eto-panel-unit">ms</span>
+        </div>
+      </Field>
 
-      {/* Card anchor */}
-      <FieldRow label="Card X (vw)">
-        <input className="eto-panel-input eto-panel-input--narrow" type="number"
-          value={step.cardAnchor?.x ?? ""} min={0} max={100}
-          onChange={(e) => {
-            if (!e.target.value) {
-              editor.clearCardAnchor(step.id);
-            } else {
-              const x = Number(e.target.value);
-              const y = step.cardAnchor?.y ?? 72;
-              editor.setCardAnchor(step.id, { space: "viewport", x, y });
-            }
-          }}
-          placeholder="default" />
-      </FieldRow>
-      <FieldRow label="Card Y (vh)">
-        <input className="eto-panel-input eto-panel-input--narrow" type="number"
-          value={step.cardAnchor?.y ?? ""} min={0} max={100}
-          onChange={(e) => {
-            if (!e.target.value) {
-              editor.clearCardAnchor(step.id);
-            } else {
-              const y = Number(e.target.value);
-              const x = step.cardAnchor?.x ?? 50;
-              editor.setCardAnchor(step.id, { space: "viewport", x, y });
-            }
-          }}
-          placeholder="default" />
-      </FieldRow>
+      {/* ── Advanced toggle ── */}
+      <button type="button" className="eto-panel-advanced-toggle" onClick={() => setAdvanced((v) => !v)}>
+        <Gear />
+        <span>{advanced ? "Hide advanced" : "Advanced"}</span>
+        <Chevron open={advanced} />
+      </button>
 
-      {/* Actions row: move, duplicate, delete */}
+      {advanced && (
+        <div className="eto-panel-advanced">
+          <Field label="Step ID">
+            <input className="eto-panel-input eto-panel-input--mono" value={step.id} readOnly />
+          </Field>
+
+          {hasArrow && (
+            <>
+              <Field label="Arrow tip X">
+                <div className="eto-panel-inline">
+                  <input className="eto-panel-input eto-panel-input--narrow" type="number"
+                    value={Math.round(step.annotations!.arrow!.to.x)}
+                    onChange={(e) => update({ annotations: { ...step.annotations, arrow: { ...step.annotations!.arrow!, to: targetPoint(Number(e.target.value), step.annotations!.arrow!.to.y) } } })} />
+                  <span className="eto-panel-unit">%</span>
+                </div>
+              </Field>
+              <Field label="Arrow tip Y">
+                <div className="eto-panel-inline">
+                  <input className="eto-panel-input eto-panel-input--narrow" type="number"
+                    value={Math.round(step.annotations!.arrow!.to.y)}
+                    onChange={(e) => update({ annotations: { ...step.annotations, arrow: { ...step.annotations!.arrow!, to: targetPoint(step.annotations!.arrow!.to.x, Number(e.target.value)) } } })} />
+                  <span className="eto-panel-unit">%</span>
+                </div>
+              </Field>
+              <Field label="Bend">
+                <div className="eto-panel-inline">
+                  <input className="eto-panel-input eto-panel-input--narrow" type="number"
+                    value={step.annotations?.arrow?.style?.bend ?? 30} min={0} max={80}
+                    onChange={(e) => update({ annotations: { ...step.annotations, arrow: { ...step.annotations!.arrow!, style: { ...(step.annotations?.arrow?.style ?? {}), bend: Number(e.target.value) } } } })} />
+                  <span className="eto-panel-unit">°</span>
+                </div>
+              </Field>
+              <Field label="Stroke">
+                <div className="eto-panel-inline">
+                  <input className="eto-panel-input eto-panel-input--narrow" type="number"
+                    value={step.annotations?.arrow?.style?.strokeWidth ?? 1.5} min={0.5} max={6} step={0.5}
+                    onChange={(e) => update({ annotations: { ...step.annotations, arrow: { ...step.annotations!.arrow!, style: { ...(step.annotations?.arrow?.style ?? {}), strokeWidth: Number(e.target.value) } } } })} />
+                  <span className="eto-panel-unit">px</span>
+                </div>
+              </Field>
+            </>
+          )}
+
+          <Field label="Card X (step)">
+            <div className="eto-panel-inline">
+              <input className="eto-panel-input eto-panel-input--narrow" type="number"
+                value={step.cardAnchor?.x ?? ""}
+                onChange={(e) => {
+                  if (!e.target.value) { editor.clearCardAnchor(step.id); }
+                  else { editor.setCardAnchor(step.id, { space: "viewport", x: Number(e.target.value), y: step.cardAnchor?.y ?? 700 }); }
+                }} placeholder="global" />
+              <span className="eto-panel-unit">px</span>
+            </div>
+          </Field>
+          <Field label="Card Y (step)">
+            <div className="eto-panel-inline">
+              <input className="eto-panel-input eto-panel-input--narrow" type="number"
+                value={step.cardAnchor?.y ?? ""}
+                onChange={(e) => {
+                  if (!e.target.value) { editor.clearCardAnchor(step.id); }
+                  else { editor.setCardAnchor(step.id, { space: "viewport", x: step.cardAnchor?.x ?? 420, y: Number(e.target.value) }); }
+                }} placeholder="global" />
+              <span className="eto-panel-unit">px</span>
+            </div>
+          </Field>
+        </div>
+      )}
+
+      {/* ── Actions row ── */}
       <div className="eto-panel-actions">
         <button type="button" className="eto-panel-action" title="Move up"
-          disabled={index === 0} onClick={() => editor.moveStep(step.id, "up")}>
-          <UpIcon />
-        </button>
+          disabled={index === 0} onClick={() => editor.moveStep(step.id, "up")}><Up /></button>
         <button type="button" className="eto-panel-action" title="Move down"
-          disabled={index === total - 1} onClick={() => editor.moveStep(step.id, "down")}>
-          <DownIcon />
-        </button>
-        <button type="button" className="eto-panel-action" title="Duplicate step"
-          onClick={() => {
-            const dup: Step<unknown> = {
-              ...step,
-              id: `${step.id}-copy-${Date.now()}`,
-              title: `${step.title ?? ""} (copy)`,
-            };
-            editor.addStep(dup);
-          }}>
-          <CopyIcon />
-        </button>
-        <button type="button" className="eto-panel-action eto-panel-action--danger" title="Delete step"
-          onClick={() => {
-            if (confirm(`Delete step "${step.title || step.id}"?`)) {
-              editor.removeStep(step.id);
-            }
-          }}>
-          <TrashIcon />
-        </button>
+          disabled={index === total - 1} onClick={() => editor.moveStep(step.id, "down")}><Down /></button>
+        <button type="button" className="eto-panel-action" title="Duplicate"
+          onClick={() => editor.addStep({ ...step, id: `${step.id}-copy-${Date.now()}`, title: `${step.title ?? ""} (copy)` })}><Copy /></button>
+        <button type="button" className="eto-panel-action eto-panel-action--danger" title="Delete"
+          onClick={() => { if (confirm(`Delete "${step.title || step.id}"?`)) editor.removeStep(step.id); }}><Trash /></button>
       </div>
     </div>
   );
@@ -459,7 +368,7 @@ function StepEditor({ step, index, total, editor }: {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="eto-panel-field">
       <label className="eto-panel-field-label">{label}</label>
@@ -468,17 +377,17 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-function ToggleButton({ label, active, onChange }: { label: string; active: boolean; onChange: (on: boolean) => void }) {
+function Pill({ label, active, onChange }: { label: string; active: boolean; onChange: (on: boolean) => void }) {
   return (
     <button type="button"
-      className={`eto-panel-toggle-btn${active ? " eto-panel-toggle-btn--on" : ""}`}
+      className={`eto-panel-pill${active ? " eto-panel-pill--on" : ""}`}
       onClick={() => onChange(!active)}>
       {label}
     </button>
   );
 }
 
-function unsavedCountOf(o: any): number {
+function unsavedCount(o: any): number {
   if (!o) return 0;
   return (
     Object.keys(o.cardAnchors ?? {}).length +
@@ -487,6 +396,7 @@ function unsavedCountOf(o: any): number {
     Object.keys(o.newArrows ?? {}).length +
     Object.keys(o.stepEdits ?? {}).length +
     (o.addedSteps?.length ?? 0) +
-    (o.removedIds?.length ?? 0)
+    (o.removedIds?.length ?? 0) +
+    (o.defaultCardAnchor ? 1 : 0)
   );
 }
