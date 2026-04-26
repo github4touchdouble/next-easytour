@@ -526,6 +526,13 @@
 /* Step list */
 .eto-panel-steps { flex: 1; overflow-y: auto; padding: 2px 0; }
 
+/* Trigger button config section */
+.eto-panel-trigger-section {
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--eto-border-soft);
+  flex-shrink: 0;
+}
+
 .eto-panel-step { border-bottom: 1px solid var(--eto-border-soft); }
 .eto-panel-step--active { background: color-mix(in srgb, var(--eto-accent) 5%, transparent); }
 
@@ -1053,4 +1060,105 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
+}
+
+/* ── TriggerButton (alpha.20) ────────────────────────────────────────
+   Tutorial start button with three visual modes. */
+
+.eto-trigger {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Subtle mode (default) ── */
+
+.eto-trigger--subtle {
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--eto-accent);
+  border: 1px solid color-mix(in srgb, var(--eto-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--eto-accent) 6%, transparent);
+  box-shadow: 0 0 16px -4px color-mix(in srgb, var(--eto-accent) 20%, transparent);
+  transition: background 150ms, border-color 150ms, box-shadow 150ms;
+  animation: eto-trigger-enter 250ms ease-out;
+}
+.eto-trigger--subtle:hover {
+  background: color-mix(in srgb, var(--eto-accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--eto-accent) 50%, transparent);
+  box-shadow: 0 0 20px -2px color-mix(in srgb, var(--eto-accent) 30%, transparent);
+}
+.eto-trigger--subtle svg {
+  color: var(--eto-accent);
+}
+
+/* ── Attention mode (flashy) ── */
+
+.eto-trigger--attention {
+  padding: 6px 16px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  border: 1px solid rgba(255, 100, 100, 0.5);
+  background:
+    linear-gradient(90deg,
+      rgba(220,38,38,0.6) 0%,
+      rgba(255,100,100,0.85) 25%,
+      rgba(220,38,38,0.6) 50%,
+      rgba(180,20,20,0.7) 100%);
+  background-size: 200% 100%;
+  animation:
+    eto-trigger-sweep 1.2s linear infinite,
+    eto-trigger-glow 1.5s ease-in-out infinite,
+    eto-trigger-enter 250ms ease-out;
+}
+.eto-trigger--attention:hover {
+  filter: brightness(1.1);
+}
+.eto-trigger--attention svg {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ── Minimal mode (icon-only circle) ── */
+
+.eto-trigger--minimal {
+  padding: 6px;
+  border-radius: 9999px;
+  color: var(--eto-accent);
+  border: 1px solid color-mix(in srgb, var(--eto-accent) 25%, transparent);
+  background: color-mix(in srgb, var(--eto-accent) 5%, transparent);
+  transition: background 150ms, border-color 150ms;
+  animation: eto-trigger-enter 250ms ease-out;
+}
+.eto-trigger--minimal:hover {
+  background: color-mix(in srgb, var(--eto-accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--eto-accent) 40%, transparent);
+}
+
+.eto-trigger-text {
+  white-space: nowrap;
+}
+
+/* ── Trigger keyframes ── */
+
+@keyframes eto-trigger-enter {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes eto-trigger-sweep {
+  from { background-position: 200% 0; }
+  to   { background-position: 0% 0; }
+}
+@keyframes eto-trigger-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(220, 38, 38, 0.3); }
+  50%      { box-shadow: 0 0 20px rgba(255, 100, 100, 0.6), 0 0 40px rgba(220, 38, 38, 0.2); }
 }

@@ -29,6 +29,7 @@ import type {
   SaveHandler,
   Step,
   TargetPoint,
+  TriggerConfig,
   ViewportAnchor,
 } from "../types";
 
@@ -53,6 +54,8 @@ interface Overrides {
   removedIds: string[];
   /** alpha.8: global card position for all steps without their own override. */
   defaultCardAnchor?: ViewportAnchor;
+  /** alpha.20: trigger button configuration. */
+  triggerConfig?: TriggerConfig;
 }
 
 const EMPTY_OVERRIDES: Overrides = {
@@ -64,6 +67,7 @@ const EMPTY_OVERRIDES: Overrides = {
   addedSteps: [],
   removedIds: [],
   defaultCardAnchor: undefined,
+  triggerConfig: undefined,
 };
 
 function unsavedCountOf(o: Overrides): number {
@@ -194,6 +198,9 @@ export interface EditorInternalApi {
   moveStep: (stepId: string, direction: "up" | "down") => void;
   /** alpha.8: set card position for ALL steps (global default). */
   setDefaultCardAnchor: (a: ViewportAnchor) => void;
+  /** alpha.20: trigger button config. */
+  triggerConfig?: TriggerConfig;
+  setTriggerConfig: (config: TriggerConfig) => void;
   save: () => Promise<void>;
   revert: () => void;
   saveStatus: EditorState["saveStatus"];
@@ -329,6 +336,10 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
     setOverrides((p) => ({ ...p, defaultCardAnchor: a }));
   }, []);
 
+  const setTriggerConfig = useCallback((config: TriggerConfig) => {
+    setOverrides((p) => ({ ...p, triggerConfig: { ...(p.triggerConfig ?? {}), ...config } }));
+  }, []);
+
   const revert = useCallback(() => {
     setOverrides(EMPTY_OVERRIDES);
     setSaveStatus("idle");
@@ -375,11 +386,14 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
       steps: mergedSteps as Step<unknown>[],
       setCardAnchor, clearCardAnchor, setArrowTip, setArrow, setCircles,
       updateStep, addStep, removeStep, moveStep,
-      setDefaultCardAnchor, save, revert, saveStatus,
+      setDefaultCardAnchor,
+      triggerConfig: overrides.triggerConfig,
+      setTriggerConfig,
+      save, revert, saveStatus,
     }),
     [active, overrides, mergedSteps, setCardAnchor, clearCardAnchor,
      setArrowTip, setArrow, setCircles, updateStep, addStep, removeStep,
-     moveStep, setDefaultCardAnchor, save, revert, saveStatus],
+     moveStep, setDefaultCardAnchor, setTriggerConfig, save, revert, saveStatus],
   );
 
   return (

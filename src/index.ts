@@ -20,6 +20,9 @@ export type { TooltipProps } from "./overlay/Tooltip";
 
 export { Labels } from "./overlay/Labels";
 
+export { TriggerButton } from "./overlay/TriggerButton";
+export type { TriggerButtonProps, TriggerMode } from "./overlay/TriggerButton";
+
 // Editor
 export { Editor, useEditorState } from "./editor/Editor";
 export type { EditorProps } from "./editor/Editor";
@@ -31,7 +34,7 @@ export type {
   TargetPoint, ViewportAnchor,
   Arrow as ArrowAnnotation, ArrowStyle, Circle, Annotations,
   Step, StepAction, WaitCondition, HighlightEffect, TransitionConfig,
-  TutorialStatus, TutorialApi, TutorialProps, TutorialTheme, TextLabel,
+  TutorialStatus, TutorialApi, TutorialProps, TutorialTheme, TriggerConfig, TextLabel,
   TextLabelAnimation, TextLabelFrame,
   CanEdit, EditorState, SaveHandler,
 } from "./types";

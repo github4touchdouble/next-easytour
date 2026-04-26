@@ -12,7 +12,7 @@ import { useTutorial } from "../core/Tutorial";
 import { useEditor, type EditorInternalApi } from "./Editor";
 import { OverlayPortal } from "../core/OverlayPortal";
 import { targetPoint } from "../coords";
-import type { Step, TextLabel, TextLabelAnimation, TextLabelFrame } from "../types";
+import type { Step, TextLabel, TextLabelAnimation, TextLabelFrame, TriggerConfig } from "../types";
 
 // ── Icons ───────────────────────────────────────────────────────────────
 
@@ -124,6 +124,31 @@ export function EditorPanel(props: EditorPanelProps) {
 
       {!collapsed && (
         <>
+          {/* ── Trigger button config ── */}
+          <div className="eto-panel-trigger-section">
+            <div className="eto-panel-section-title">Trigger Button</div>
+            <div className="eto-panel-section-body">
+              <Field label="Text">
+                <input className="eto-panel-input"
+                  value={editor.triggerConfig?.text ?? "Start tutorial"}
+                  onChange={(e) => editor.setTriggerConfig({ text: e.target.value })}
+                  placeholder="Start tutorial" />
+              </Field>
+              <Field label="Mode">
+                <div className="eto-panel-toggles">
+                  {(["attention", "subtle", "minimal"] as const).map((m) => (
+                    <Pill key={m} label={m} active={(editor.triggerConfig?.mode ?? "subtle") === m}
+                      onChange={() => editor.setTriggerConfig({ mode: m })} />
+                  ))}
+                </div>
+              </Field>
+              <div className="eto-panel-toggles">
+                <Pill label="Show icon" active={editor.triggerConfig?.icon !== false}
+                  onChange={(on) => editor.setTriggerConfig({ icon: on })} />
+              </div>
+            </div>
+          </div>
+
           <div className="eto-panel-steps">
             {steps.map((s, i) => (
               <StepCard key={s.id} step={s} index={i} total={steps.length}

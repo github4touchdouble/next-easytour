@@ -319,3 +319,13 @@ export interface TutorialTheme {
   /** Card border radius. Default "0.5rem". */
   cardRadius?: string;
 }
+
+/** Configuration for the tutorial trigger button. */
+export interface TriggerConfig {
+  /** Button text. Default "Start tutorial". */
+  text?: string;
+  /** Visual mode. Default "subtle". */
+  mode?: "attention" | "subtle" | "minimal";
+  /** Show help-circle icon. Default true. */
+  icon?: boolean;
+}
