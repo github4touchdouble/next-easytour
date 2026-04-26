@@ -3,20 +3,17 @@
 /**
  * @module core/OverlayPortal
  *
- * Portals children to document.body. All fixed-positioned overlay
- * elements (Card, Arrow, Spotlight, Circles, editor toolbar/panel)
- * must render at the top level of the DOM because `position: fixed`
- * breaks when any ancestor has a CSS `transform`, `perspective`,
- * `filter`, or `contain: paint`. React portals preserve context
- * (useTutorial, useEditor, etc.) while escaping the DOM hierarchy.
+ * Portals children to document.body so `position: fixed` / `absolute`
+ * works even when ancestors have `transform` or `filter` CSS.
+ *
+ * Renders the portal synchronously (no mount delay). This is safe
+ * because tour overlays only render when a step is active, which
+ * never happens during SSR.
  */
 
-import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 export function OverlayPortal({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  if (!mounted || typeof document === "undefined") return null;
+  if (typeof document === "undefined") return null;
   return createPortal(children, document.body);
 }

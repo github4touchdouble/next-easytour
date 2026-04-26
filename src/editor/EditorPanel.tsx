@@ -228,18 +228,17 @@ function StepEditor({ step, index, total, editor }: {
       {/* ── Overlays — visual toggles ── */}
       <div className="eto-panel-section-label">Overlays</div>
       <div className="eto-panel-toggles">
-        <Pill label="Spotlight" active={hasSpotlight} onChange={(on) =>
-          update({ annotations: { ...(step.annotations ?? {}), spotlight: on } })} />
+        <Pill label="Spotlight" active={hasSpotlight} onChange={(on) => {
+          const a = { ...(step.annotations ?? {}) };
+          if (on) { a.spotlight = true; } else { delete a.spotlight; }
+          update({ annotations: a });
+        }} />
         <Pill label="Highlight" active={hasHighlight} onChange={(on) =>
           update({ highlight: on || undefined })} />
         <Pill label="Arrow" active={hasArrow} onChange={(on) => {
-          if (on) {
-            update({ annotations: { ...(step.annotations ?? {}), arrow: { to: targetPoint(50, 50) } } });
-          } else {
-            const a = { ...(step.annotations ?? {}) };
-            delete a.arrow;
-            update({ annotations: a });
-          }
+          const a = { ...(step.annotations ?? {}) };
+          if (on) { a.arrow = { to: targetPoint(50, 50) }; } else { delete a.arrow; }
+          update({ annotations: a });
         }} />
         <Pill label="Auto-scroll" active={!!step.scrollIntoView} onChange={(on) =>
           update({ scrollIntoView: on || undefined })} />

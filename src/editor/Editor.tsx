@@ -122,8 +122,13 @@ function mergeOverrides<Meta>(steps: Step<Meta>[], o: Overrides): Step<Meta>[] {
 
     if (!hasAnyOverride) return s;
 
-    // Build merged annotations
-    const annotations = { ...(s.annotations ?? {}) };
+    // Build merged annotations.
+    // If the editor panel provides annotations (edit?.annotations), use
+    // that as the base — it's the source of truth for what overlays are
+    // on/off. Arrow tip and circles drag overrides apply on top.
+    const annotations = edit?.annotations !== undefined
+      ? { ...(edit.annotations) }
+      : { ...(s.annotations ?? {}) };
 
     if (arrowTipOverride !== undefined) {
       const existingArrow = annotations.arrow;
@@ -140,14 +145,6 @@ function mergeOverrides<Meta>(steps: Step<Meta>[], o: Overrides): Step<Meta>[] {
 
     if (circlesOverride !== undefined) {
       annotations.circles = circlesOverride;
-    }
-
-    // Merge step edit fields
-    const editAnnotations = edit?.annotations;
-    if (editAnnotations) {
-      if (editAnnotations.spotlight !== undefined) annotations.spotlight = editAnnotations.spotlight;
-      if (editAnnotations.arrow !== undefined) annotations.arrow = editAnnotations.arrow;
-      if (editAnnotations.circles !== undefined) annotations.circles = editAnnotations.circles;
     }
 
     const targets = (() => {
