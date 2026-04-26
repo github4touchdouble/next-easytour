@@ -149,6 +149,21 @@ export function EditorPanel(props: EditorPanelProps) {
             </div>
           </div>
 
+          {/* ── Card layout ── */}
+          <div className="eto-panel-trigger-section">
+            <div className="eto-panel-section-title">Card Layout</div>
+            <div className="eto-panel-section-body">
+              <button type="button" className="eto-panel-add"
+                style={{ margin: 0 }}
+                onClick={() => editor.resetAllCardAnchors()}>
+                Reset all card positions
+              </button>
+              <p className="eto-panel-hint">
+                Clears per-step overrides so every card uses the global position (set via "Move all" in the toolbar).
+              </p>
+            </div>
+          </div>
+
           <div className="eto-panel-steps">
             {steps.map((s, i) => (
               <StepCard key={s.id} step={s} index={i} total={steps.length}

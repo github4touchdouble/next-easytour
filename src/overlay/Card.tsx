@@ -37,6 +37,8 @@ export interface CardRenderArgs<Meta = unknown> {
   isLast: boolean;
   canAdvance: boolean;
   isWaiting: boolean;
+  /** Minimum height (px) that keeps the card stable across all steps. */
+  stableMinHeight: number;
   next: () => void;
   prev: () => void;
   close: () => void;
@@ -199,7 +201,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   if (!step) return null;
 
   const renderArgs: CardRenderArgs<Meta> = {
-    step, index, total, isFirst, isLast, canAdvance, isWaiting, next, prev, close,
+    step, index, total, isFirst, isLast, canAdvance, isWaiting, stableMinHeight, next, prev, close,
   };
   const isRenderProp = typeof children === "function";
   const rendered = isRenderProp

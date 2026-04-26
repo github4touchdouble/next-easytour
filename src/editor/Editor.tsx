@@ -199,6 +199,8 @@ export interface EditorInternalApi {
   moveStep: (stepId: string, direction: "up" | "down") => void;
   /** alpha.8: set card position for ALL steps (global default). */
   setDefaultCardAnchor: (a: ViewportAnchor) => void;
+  /** alpha.26: clear all per-step card positions so every step uses the global default. */
+  resetAllCardAnchors: () => void;
   /** alpha.20: trigger button config. */
   triggerConfig?: TriggerConfig;
   setTriggerConfig: (config: TriggerConfig) => void;
@@ -339,6 +341,20 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
     setOverrides((p) => ({ ...p, defaultCardAnchor: a }));
   }, []);
 
+  const resetAllCardAnchors = useCallback(() => {
+    setOverrides((p) => {
+      // Clear all per-step anchors + clear step edits that contain cardAnchor
+      const cleanedEdits = { ...p.stepEdits };
+      for (const [id, edit] of Object.entries(cleanedEdits)) {
+        if (edit?.cardAnchor) {
+          const { cardAnchor, ...rest } = edit;
+          cleanedEdits[id] = rest;
+        }
+      }
+      return { ...p, cardAnchors: {}, stepEdits: cleanedEdits };
+    });
+  }, []);
+
   const setTriggerConfig = useCallback((config: TriggerConfig) => {
     setOverrides((p) => ({ ...p, triggerConfig: { ...(p.triggerConfig ?? {}), ...config } }));
   }, []);
@@ -399,6 +415,7 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
       setCardAnchor, clearCardAnchor, setArrowTip, setArrow, setCircles,
       updateStep, addStep, removeStep, moveStep,
       setDefaultCardAnchor,
+      resetAllCardAnchors,
       triggerConfig: overrides.triggerConfig
         ? { ...(baseTriggerConfig ?? {}), ...overrides.triggerConfig }
         : baseTriggerConfig,
@@ -407,7 +424,7 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
     }),
     [active, overrides, mergedSteps, setCardAnchor, clearCardAnchor,
      setArrowTip, setArrow, setCircles, updateStep, addStep, removeStep,
-     moveStep, setDefaultCardAnchor, setTriggerConfig, baseTriggerConfig, save, revert, saveStatus],
+     moveStep, setDefaultCardAnchor, resetAllCardAnchors, setTriggerConfig, baseTriggerConfig, save, revert, saveStatus],
   );
 
   return (
