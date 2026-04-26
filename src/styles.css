@@ -992,6 +992,13 @@
   flex-shrink: 0;
 }
 
+.eto-panel-label-style-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .eto-panel-label-position {
   display: flex;
   flex-direction: column;
@@ -1058,38 +1065,41 @@
   color: var(--eto-accent);
 }
 
-/* ── Animation engine classes (alpha.17) ──────────────────────────────
-   Phase classes applied by useFrameSequence and useEnterAnimation.
-   The actual visual transitions are CSS-only. */
+/* ── Animation engine classes (alpha.18) ──────────────────────────────
+   Frame transitions are OPACITY ONLY — no transform changes, no jumping.
+   Step-enter gets a subtle slide. */
 
-/* Enter animation for labels appearing on step change */
+/* Enter animation for labels appearing on step change (one-time slide) */
 .eto-label--enter {
-  animation: eto-label-enter 300ms ease-out;
+  animation: eto-label-enter 250ms ease-out;
 }
 
-/* Frame sequence phases — applied by useFrameSequence */
+/* Frame sequence phases — opacity only, no position shift */
 .eto-anim--hidden {
   opacity: 0;
   pointer-events: none;
 }
 .eto-anim--enter {
-  animation: eto-anim-enter 300ms ease-out;
+  animation: eto-anim-enter 250ms ease-out;
 }
 .eto-anim--exit {
-  animation: eto-anim-exit 300ms ease-in forwards;
+  animation: eto-anim-exit 200ms ease-in forwards;
 }
 
+/* Step-enter: subtle slide up (first appearance only) */
 @keyframes eto-label-enter {
-  from { opacity: 0; transform: translate(-50%, -90%); }
+  from { opacity: 0; transform: translate(-50%, calc(-100% + 6px)); }
   to   { opacity: 1; transform: translate(-50%, -100%); }
 }
+
+/* Frame transitions: OPACITY ONLY — label stays in place */
 @keyframes eto-anim-enter {
-  from { opacity: 0; transform: translate(-50%, -90%); }
-  to   { opacity: 1; transform: translate(-50%, -100%); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 @keyframes eto-anim-exit {
-  from { opacity: 1; transform: translate(-50%, -100%); }
-  to   { opacity: 0; transform: translate(-50%, -110%); }
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 
 /* ── Label animation editor controls ── */

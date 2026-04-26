@@ -93,10 +93,14 @@ function LabelElement({ label, index, stepId, targetRect, isAbsolute, isEditing,
   const enterClass = useEnterAnimation(stepId, "eto-label--enter", 300);
 
   // ── Resolve display values ────────────────────────────────────────
+  // ── Resolve display values ────────────────────────────────────────
+  // Variant is ALWAYS from the label itself — never from frames.
+  // Changing variant between frames shifts container size → jumping.
+  // Frames only override text and color.
   const displayText = frame.text ?? label.text;
-  const displayVariant = frame.variant ?? label.variant ?? "callout";
+  const displayVariant = label.variant ?? "callout";
   const displayColor = frame.color ?? label.color;
-  const displayFontSize = frame.fontSize ?? label.fontSize ?? 12;
+  const displayFontSize = label.fontSize ?? 12;
 
   // ── Position ──────────────────────────────────────────────────────
   const pos = targetPointToPx(label.position, targetRect);

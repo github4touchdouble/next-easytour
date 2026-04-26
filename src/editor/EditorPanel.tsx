@@ -365,39 +365,41 @@ function StepEditor({ step, index, total, editor }: {
       {/* ── Text labels ── */}
       <Section title="Text labels">
         {labels.length > 0 && (
-          <p className="eto-panel-hint">Drag labels directly on the page to reposition.</p>
+          <p className="eto-panel-hint">Drag labels on the page to reposition.</p>
         )}
         {labels.map((lbl, i) => (
           <div key={i} className="eto-panel-label-card">
-            {/* Header: index + text + delete */}
+            {/* Header row */}
             <div className="eto-panel-label-row">
               <span className="eto-panel-label-idx">{i + 1}</span>
               <input className="eto-panel-input" value={lbl.text}
                 onChange={(e) => updateLabel(i, { text: e.target.value })}
                 placeholder="Label text" />
               <button type="button" className="eto-panel-action eto-panel-action--danger"
-                onClick={() => removeLabel(i)} title="Remove label">
-                <MiniTrash />
-              </button>
+                onClick={() => removeLabel(i)} title="Remove"><MiniTrash /></button>
             </div>
 
-            {/* Style variant */}
-            <div className="eto-panel-toggles">
-              {(["callout", "badge", "tag", "code", "plain"] as const).map((v) => (
-                <Pill key={v} label={v} active={(lbl.variant ?? "callout") === v}
-                  onChange={() => updateLabel(i, { variant: v })} />
-              ))}
+            {/* Style + size row */}
+            <div className="eto-panel-label-style-row">
+              <label className="eto-panel-field-label">Style</label>
+              <select className="eto-panel-select"
+                value={lbl.variant ?? "callout"}
+                onChange={(e) => updateLabel(i, { variant: e.target.value as TextLabel["variant"] })}>
+                <option value="plain">Plain text</option>
+                <option value="callout">Callout card</option>
+                <option value="badge">Badge pill</option>
+                <option value="tag">Tag</option>
+                <option value="code">Code</option>
+              </select>
+              <Slider label="Size" value={lbl.fontSize ?? 12} min={9} max={24}
+                onChange={(v) => updateLabel(i, { fontSize: v })} unit="px" />
             </div>
 
-            {/* Live coordinates + quick presets */}
+            {/* Position: coordinates + presets */}
             <div className="eto-panel-label-position">
               <div className="eto-panel-label-coords">
-                <span className="eto-panel-coord">
-                  X <strong>{Math.round(lbl.position.x)}</strong>%
-                </span>
-                <span className="eto-panel-coord">
-                  Y <strong>{Math.round(lbl.position.y)}</strong>%
-                </span>
+                <span className="eto-panel-coord">X <strong>{Math.round(lbl.position.x)}</strong>%</span>
+                <span className="eto-panel-coord">Y <strong>{Math.round(lbl.position.y)}</strong>%</span>
               </div>
               <div className="eto-panel-label-quick">
                 {[
@@ -410,15 +412,10 @@ function StepEditor({ step, index, total, editor }: {
                   <button key={p.tip} type="button"
                     className={`eto-panel-pos-btn${lbl.position.x === p.x && lbl.position.y === p.y ? " eto-panel-pos-btn--active" : ""}`}
                     onClick={() => updateLabel(i, { position: targetPoint(p.x, p.y) })}
-                    title={p.tip}>
-                    {p.tip}
-                  </button>
+                    title={p.tip}>{p.tip}</button>
                 ))}
               </div>
             </div>
-
-            <Slider label="Size" value={lbl.fontSize ?? 12} min={9} max={24}
-              onChange={(v) => updateLabel(i, { fontSize: v })} unit="px" />
 
             {/* Animation */}
             <LabelAnimationEditor label={lbl} index={i} updateLabel={updateLabel} />
@@ -506,7 +503,7 @@ function LabelAnimationEditor({ label, index, updateLabel }: {
       updateLabel(index, {
         animation: {
           frames: [
-            { text: label.text, variant: label.variant },
+            { text: label.text },
             { text: "Second frame" },
           ],
           frameDuration: 2500,
@@ -549,22 +546,13 @@ function LabelAnimationEditor({ label, index, updateLabel }: {
 
       {hasAnim && anim && (
         <div className="eto-panel-anim-body">
-          {/* Frames */}
+          {/* Frames — text only, style stays on the label */}
           {anim.frames.map((fr, fi) => (
             <div key={fi} className="eto-panel-anim-frame">
               <span className="eto-panel-anim-frame-num">{fi + 1}</span>
               <input className="eto-panel-input" value={fr.text}
                 onChange={(e) => updateFrame(fi, { text: e.target.value })}
                 placeholder="Frame text" />
-              <select className="eto-panel-select"
-                value={fr.variant ?? label.variant ?? "callout"}
-                onChange={(e) => updateFrame(fi, { variant: e.target.value as TextLabel["variant"] })}>
-                <option value="callout">callout</option>
-                <option value="badge">badge</option>
-                <option value="tag">tag</option>
-                <option value="code">code</option>
-                <option value="plain">plain</option>
-              </select>
               {anim.frames.length > 1 && (
                 <button type="button" className="eto-panel-action eto-panel-action--danger"
                   onClick={() => removeFrame(fi)} title="Remove frame">
@@ -577,17 +565,10 @@ function LabelAnimationEditor({ label, index, updateLabel }: {
             <Plus /> Frame
           </button>
 
-          {/* Controls */}
+          {/* Speed + loop */}
           <Slider label="Speed" value={anim.frameDuration ?? 2000} min={500} max={8000} step={250}
             onChange={(v) => setAnim({ frameDuration: v })}
             unit="ms" formatValue={(v) => `${(v / 1000).toFixed(1)}s`} />
-
-          <div className="eto-panel-toggles">
-            {(["fade", "slide-up", "none"] as const).map((t) => (
-              <Pill key={t} label={t} active={(anim.transition ?? "fade") === t}
-                onChange={() => setAnim({ transition: t })} />
-            ))}
-          </div>
 
           <div className="eto-panel-toggles">
             <Pill label="Loop" active={anim.loop ?? false}
