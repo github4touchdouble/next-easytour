@@ -95,10 +95,46 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
     scrollIntoView: globalScrollIntoView,
     defaultCardAnchor,
     cardPositioning: cardPositioningProp,
+    theme,
     children,
   } = props;
 
   const cardPositioning = cardPositioningProp ?? "fixed";
+
+  // ── Theme injection ─────────────────────────────────────────────────
+  // Sets CSS custom properties on :root so portaled overlays inherit them.
+  useEffect(() => {
+    if (!theme) return;
+    const root = document.documentElement;
+    const mapping: Record<string, string> = {
+      accent: "--eto-accent",
+      surface: "--eto-surface",
+      fg: "--eto-fg",
+      muted: "--eto-muted",
+      mutedSoft: "--eto-muted-soft",
+      hoverBg: "--eto-hover-bg",
+      border: "--eto-border",
+      borderSoft: "--eto-border-soft",
+      arrowColor: "--eto-arrow",
+      arrowOpacity: "--eto-arrow-opacity",
+      cardWidth: "--eto-card-width",
+      cardRadius: "--eto-card-radius",
+    };
+    const applied: string[] = [];
+    for (const [key, cssVar] of Object.entries(mapping)) {
+      const val = (theme as Record<string, string | undefined>)[key];
+      if (val !== undefined) {
+        root.style.setProperty(cssVar, val);
+        applied.push(cssVar);
+      }
+    }
+    return () => {
+      // Clean up: remove only the vars we set
+      for (const cssVar of applied) {
+        root.style.removeProperty(cssVar);
+      }
+    };
+  }, [theme]);
 
   // ── Validation (dev-only) ─────────────────────────────────────────────
   const validatedRef = useRef(false);

@@ -24,7 +24,7 @@ import { OverlayPortal } from "../core/OverlayPortal";
 import { useEnterAnimation } from "../core/animation";
 import { useCardRectSetter } from "./Arrow";
 import type { Rect } from "../core/useTargetRect";
-import type { TutorialApi, CardVariant, BrandedCardProps, TransitionConfig } from "../types";
+import type { TutorialApi, TransitionConfig } from "../types";
 
 // ── Render-prop signature ───────────────────────────────────────────────
 
@@ -45,9 +45,8 @@ type CardChildren<Meta = unknown> =
   | React.ReactNode
   | ((args: CardRenderArgs<Meta>) => React.ReactNode);
 
-export interface CardProps<Meta = unknown> extends BrandedCardProps {
+export interface CardProps<Meta = unknown> {
   children?: CardChildren<Meta>;
-  variant?: CardVariant;
   disableKeyboard?: boolean;
   /** Override the global transition config. */
   transition?: TransitionConfig;
@@ -59,12 +58,6 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   const {
     children,
     disableKeyboard = false,
-    variant = "default",
-    logo,
-    logoAlt,
-    labels,
-    accent,
-    hideProgress,
     transition: transitionProp,
   } = props;
   const api = useTutorial<Meta>();
@@ -199,28 +192,23 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
     ? (children as (a: CardRenderArgs<Meta>) => React.ReactNode)(renderArgs)
     : null;
 
-  const isBranded = variant === "branded" && !children;
   // When render-prop mode is active, the wrapper is just a positioning
   // container — the host's render-prop provides all visual styling.
   // .eto-card--custom strips border/shadow/bg from the wrapper.
   const className = [
     "eto-card",
     isRenderProp ? "eto-card--custom" : "",
-    isBranded ? "eto-card--branded" : "",
     animClass,
   ].filter(Boolean).join(" ");
 
-  const styleWithAccent: React.CSSProperties = {
-    ...positionStyle,
-    ...(accent ? ({ ["--eto-branded-accent" as string]: accent } as React.CSSProperties) : {}),
-  };
+  const styleObj: React.CSSProperties = { ...positionStyle };
 
   return (
     <OverlayPortal>
     <div
       ref={cardRef}
       className={className}
-      style={styleWithAccent}
+      style={styleObj}
       role="dialog"
       aria-modal="false"
       aria-labelledby={!isRenderProp ? titleId : undefined}
@@ -230,16 +218,6 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
         rendered
       ) : children ? (
         children
-      ) : isBranded ? (
-        <BrandedCardBody
-          api={api as TutorialApi<unknown>}
-          titleId={titleId}
-          bodyId={bodyId}
-          logo={logo}
-          logoAlt={logoAlt}
-          labels={labels}
-          hideProgress={hideProgress}
-        />
       ) : (
         <DefaultCardBody
           api={api as TutorialApi<unknown>}
@@ -292,80 +270,4 @@ function DefaultCardBody(props: {
   );
 }
 
-// ── Branded body ────────────────────────────────────────────────────────
-
-function BrandedCardBody(props: {
-  api: TutorialApi<unknown>;
-  titleId: string;
-  bodyId: string;
-  logo?: string | React.ReactNode;
-  logoAlt?: string;
-  labels?: BrandedCardProps["labels"];
-  hideProgress?: boolean;
-}) {
-  const { api, titleId, bodyId, logo, logoAlt, labels, hideProgress } = props;
-  const { step, index, total, isFirst, isLast, canAdvance, isWaiting, next, prev, close } = api;
-  if (!step) return null;
-
-  const backLabel = labels?.back ?? "Back";
-  const nextLabel = labels?.next ?? "Next";
-  const doneLabel = labels?.done ?? "Done";
-  const closeLabel = labels?.close ?? "Close tutorial";
-
-  const logoNode =
-    typeof logo === "string" ? (
-      <img src={logo} alt={logoAlt ?? ""} className="eto-branded-logo" draggable={false} />
-    ) : (logo ?? null);
-
-  const progressNode = (() => {
-    if (hideProgress) return null;
-    if (total <= 15) {
-      return (
-        <div className="eto-branded-progress" aria-hidden="true">
-          {Array.from({ length: total }, (_, i) => (
-            <span key={i} className={`eto-branded-dot${i === index ? " eto-active" : ""}`} />
-          ))}
-        </div>
-      );
-    }
-    return (
-      <div className="eto-branded-progress">
-        <span className="eto-branded-progress-numeric">{index + 1} / {total}</span>
-      </div>
-    );
-  })();
-
-  return (
-    <>
-      <div className="eto-branded-header">
-        {logoNode}
-        <button type="button" className="eto-branded-close" onClick={close} aria-label={closeLabel}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="6" y1="6" x2="18" y2="18" />
-            <line x1="18" y1="6" x2="6" y2="18" />
-          </svg>
-        </button>
-      </div>
-      <div className="eto-branded-body">
-        {step.title && <h4 id={titleId} className="eto-branded-title">{step.title}</h4>}
-        {step.content ? (
-          <div id={bodyId} className="eto-branded-copy">{step.content}</div>
-        ) : step.body ? (
-          <p id={bodyId} className="eto-branded-copy">{step.body}</p>
-        ) : null}
-      </div>
-      {progressNode}
-      <div className="eto-branded-footer">
-        <button type="button" className="eto-branded-btn eto-branded-btn-back" onClick={prev} disabled={isFirst}>{backLabel}</button>
-        <button
-          type="button"
-          className={`eto-branded-btn eto-branded-btn-next${isWaiting ? " eto-waiting" : ""}`}
-          onClick={next}
-          disabled={!canAdvance}
-        >
-          {isWaiting ? "…" : isLast ? doneLabel : nextLabel}
-        </button>
-      </div>
-    </>
-  );
-}
+// (BrandedCardBody removed in alpha.19 — hosts use render-prop for custom card styling)

@@ -212,6 +212,13 @@ export interface TutorialProps<Meta = never> {
    */
   cardPositioning?: "fixed" | "absolute";
 
+  /**
+   * Theme overrides. Sets CSS custom properties on `:root` so all
+   * portaled overlays pick them up. Alternatively, set `--eto-*`
+   * variables directly in your CSS.
+   */
+  theme?: TutorialTheme;
+
   children: React.ReactNode;
 }
 
@@ -270,19 +277,45 @@ export interface EditorState {
   setCircles?: (stepId: string, c: Circle[]) => void;
 }
 
-// ── Card variants ───────────────────────────────────────────────────────
+// (CardVariant and BrandedCardProps removed in alpha.19 — use render-prop for custom card styling)
 
-export type CardVariant = "default" | "branded";
+// ── Theming ─────────────────────────────────────────────────────────────
 
-export interface BrandedCardProps {
-  logo?: string | React.ReactNode;
-  logoAlt?: string;
-  labels?: {
-    back?: string;
-    next?: string;
-    done?: string;
-    close?: string;
-  };
+/**
+ * Theme configuration for styling all library components.
+ * Each property maps to a CSS custom property (`--eto-*`).
+ * Set via the `theme` prop on `<Tutorial>` or directly in CSS:
+ *
+ * ```css
+ * :root {
+ *   --eto-accent: #3b82f6;
+ *   --eto-surface: #ffffff;
+ * }
+ * ```
+ */
+export interface TutorialTheme {
+  /** Primary brand colour. Used for buttons, pills, active states. Default "#4285F4". */
   accent?: string;
-  hideProgress?: boolean;
+  /** Card / panel background. Default "#ffffff". */
+  surface?: string;
+  /** Primary text colour. Default "#18181b". */
+  fg?: string;
+  /** Secondary text colour. Default "#71717a". */
+  muted?: string;
+  /** Tertiary text colour. Default "#a1a1aa". */
+  mutedSoft?: string;
+  /** Border colour. Default derived from accent. */
+  border?: string;
+  /** Subtle border colour. Default derived from accent. */
+  borderSoft?: string;
+  /** Hover background. Default "rgba(0,0,0,0.06)". */
+  hoverBg?: string;
+  /** Arrow stroke colour. Default "#404040". */
+  arrowColor?: string;
+  /** Arrow stroke opacity. Default "0.35". */
+  arrowOpacity?: string;
+  /** Card width. Default "min(480px, calc(100vw - 2rem))". */
+  cardWidth?: string;
+  /** Card border radius. Default "0.5rem". */
+  cardRadius?: string;
 }

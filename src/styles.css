@@ -201,8 +201,7 @@
 
 /* ── Waiting state ── */
 
-.eto-btn.eto-waiting,
-.eto-branded-btn.eto-waiting {
+.eto-btn.eto-waiting {
   opacity: 0.6;
   animation: eto-pulse-subtle 1.5s ease-in-out infinite;
 }
@@ -435,133 +434,6 @@
 @keyframes eto-tip-pulse {
   0%, 100% { box-shadow: 0 0 0 2px var(--eto-accent), 0 2px 8px rgba(0,0,0,0.25); }
   50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--eto-accent) 30%, transparent), 0 2px 8px rgba(0,0,0,0.25); }
-}
-
-/* ── Branded card variant ── */
-
-.eto-card--branded {
-  padding: 0 !important;
-  overflow: hidden;
-  width: min(420px, calc(100vw - 2rem));
-  border-radius: calc(var(--eto-card-radius) * 1.5);
-  border: 1px solid var(--eto-border);
-  background: var(--eto-surface);
-  box-shadow:
-    0 10px 25px -5px color-mix(in srgb, #000 25%, transparent),
-    0 8px 10px -6px color-mix(in srgb, #000 10%, transparent);
-}
-
-.eto-card--branded .eto-branded-header {
-  position: relative;
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  background: linear-gradient(
-    135deg,
-    var(--eto-branded-accent, var(--eto-accent)) 0%,
-    color-mix(in srgb, var(--eto-branded-accent, var(--eto-accent)) 75%, #000) 100%
-  );
-  color: #fff;
-}
-
-.eto-card--branded .eto-branded-logo {
-  height: 24px;
-  width: auto;
-  user-select: none;
-  filter: brightness(0) invert(1);
-}
-
-.eto-card--branded .eto-branded-close {
-  all: unset;
-  box-sizing: border-box;
-  padding: 6px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.8);
-  transition: background-color 120ms ease, color 120ms ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.eto-card--branded .eto-branded-close:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-.eto-card--branded .eto-branded-close svg { width: 16px; height: 16px; }
-
-.eto-card--branded .eto-branded-body {
-  padding: 16px 20px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.eto-card--branded .eto-branded-title {
-  font-size: 15px; font-weight: 600; line-height: 1.3; color: var(--eto-fg); margin: 0;
-}
-.eto-card--branded .eto-branded-copy {
-  font-size: 13px; line-height: 1.55; color: var(--eto-muted); margin: 0; white-space: pre-wrap;
-}
-
-.eto-card--branded .eto-branded-progress {
-  padding: 8px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-.eto-card--branded .eto-branded-dot {
-  display: block; height: 6px; width: 6px; border-radius: 9999px;
-  background: color-mix(in srgb, var(--eto-branded-accent, var(--eto-accent)) 25%, transparent);
-  transition: width 200ms ease, background-color 200ms ease;
-}
-.eto-card--branded .eto-branded-dot.eto-active {
-  width: 18px;
-  background: var(--eto-branded-accent, var(--eto-accent));
-}
-.eto-card--branded .eto-branded-progress-numeric {
-  font-size: 11px; color: var(--eto-muted); font-variant-numeric: tabular-nums;
-}
-
-.eto-card--branded .eto-branded-footer {
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-top: 1px solid var(--eto-border-soft);
-}
-.eto-card--branded .eto-branded-btn {
-  all: unset;
-  box-sizing: border-box;
-  cursor: pointer;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 6px;
-  transition: background-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
-  user-select: none;
-}
-.eto-card--branded .eto-branded-btn:disabled,
-.eto-card--branded .eto-branded-btn[aria-disabled="true"] {
-  opacity: 0.4;
-  pointer-events: none;
-}
-.eto-card--branded .eto-branded-btn-back { color: var(--eto-muted); }
-.eto-card--branded .eto-branded-btn-back:hover:not(:disabled) {
-  background-color: var(--eto-hover-bg);
-  color: var(--eto-fg);
-}
-.eto-card--branded .eto-branded-btn-next {
-  padding: 6px 16px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--eto-branded-accent, var(--eto-accent));
-  box-shadow: 0 1px 2px color-mix(in srgb, #000 15%, transparent);
-}
-.eto-card--branded .eto-branded-btn-next:hover:not(:disabled) {
-  box-shadow: 0 3px 6px color-mix(in srgb, #000 20%, transparent);
 }
 
 /* ── Keyframes ── */

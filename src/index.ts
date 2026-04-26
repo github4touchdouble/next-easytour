@@ -31,9 +31,9 @@ export type {
   TargetPoint, ViewportAnchor,
   Arrow as ArrowAnnotation, ArrowStyle, Circle, Annotations,
   Step, StepAction, WaitCondition, HighlightEffect, TransitionConfig,
-  TutorialStatus, TutorialApi, TutorialProps, TextLabel,
+  TutorialStatus, TutorialApi, TutorialProps, TutorialTheme, TextLabel,
   TextLabelAnimation, TextLabelFrame,
-  CanEdit, EditorState, SaveHandler, CardVariant, BrandedCardProps,
+  CanEdit, EditorState, SaveHandler,
 } from "./types";
 
 // Constructors
