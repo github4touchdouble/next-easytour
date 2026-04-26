@@ -3,47 +3,31 @@
 /**
  * @module overlay/TriggerButton
  *
- * Tutorial trigger button with completion-aware mode switching.
+ * Two modes:
+ *   - "annoying" — flashy red pulse UNTIL the user completes the tutorial
+ *     (done=true), then renders as "default" automatically.
+ *   - "default"  — calm accent-tinted pill, always.
  *
- * Pass `done` (from `useTutorialDone`) and the button auto-switches:
- *   - `done=false` → "attention" mode (red pulse, strobe, rattle)
- *   - `done=true`  → "subtle" mode (calm accent pill)
- *
- * Or set `mode` explicitly to override.
- *
- * Hides automatically when the tutorial is active.
+ * The host controls `done` via `useTutorialDone()`.
+ * The editor configures which mode is active.
+ * The component works outside <Tutorial> — no context dependency.
  */
 
 import * as React from "react";
 
-// ── Types ───────────────────────────────────────────────────────────────
-
-export type TriggerMode = "attention" | "subtle" | "minimal";
+export type TriggerMode = "annoying" | "default";
 
 export interface TriggerButtonProps {
-  /** Click handler — typically calls setStepId(firstStep.id). */
   onClick: () => void;
-  /** Button text. Default "Start tutorial". Ignored in "minimal" mode. */
   text?: string;
-  /**
-   * Visual mode. When omitted, auto-selects based on `done`:
-   *   - `done=false` → "attention"
-   *   - `done=true`  → "subtle"
-   */
+  /** Which mode the admin configured. Default "default". */
   mode?: TriggerMode;
-  /** Whether the tutorial has been completed. Drives auto mode selection. */
+  /** Has the user completed the tutorial? When true, "annoying" renders as "default". */
   done?: boolean;
-  /** Show the help-circle icon. Default true. */
   icon?: boolean;
-  /** Control visibility. Default true. The host gates rendering. */
-  visible?: boolean;
-  /** Additional CSS class on the button. */
   className?: string;
-  /** Additional inline styles on the button. */
   style?: React.CSSProperties;
 }
-
-// ── Icon ────────────────────────────────────────────────────────────────
 
 function HelpIcon({ size = 14 }: { size?: number }) {
   return (
@@ -56,35 +40,30 @@ function HelpIcon({ size = 14 }: { size?: number }) {
   );
 }
 
-// ── Component ───────────────────────────────────────────────────────────
-
 export function TriggerButton(props: TriggerButtonProps) {
   const {
     onClick,
     text = "Start tutorial",
-    mode: modeProp,
+    mode = "default",
     done = false,
     icon = true,
-    visible = true,
     className,
     style,
   } = props;
 
-  if (!visible) return null;
-
-  // Auto mode: attention when not done, subtle when done
-  const mode = modeProp ?? (done ? "subtle" : "attention");
+  // "annoying" downgrades to "default" once the user has completed the tutorial
+  const visualMode = (mode === "annoying" && !done) ? "annoying" : "default";
 
   const cls = [
     "eto-trigger",
-    `eto-trigger--${mode}`,
+    `eto-trigger--${visualMode}`,
     className,
   ].filter(Boolean).join(" ");
 
   return (
     <button type="button" className={cls} style={style} onClick={onClick}>
-      {icon && <HelpIcon size={mode === "minimal" ? 16 : 14} />}
-      {mode !== "minimal" && <span className="eto-trigger-text">{text}</span>}
+      {icon && <HelpIcon />}
+      <span className="eto-trigger-text">{text}</span>
     </button>
   );
 }

@@ -1077,9 +1077,9 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── Subtle mode (default) ── */
+/* ── Default mode (calm accent pill) ── */
 
-.eto-trigger--subtle {
+.eto-trigger--default {
   padding: 5px 14px;
   border-radius: 9999px;
   font-size: 11px;
@@ -1091,18 +1091,18 @@
   transition: background 150ms, border-color 150ms, box-shadow 150ms;
   animation: eto-trigger-enter 250ms ease-out;
 }
-.eto-trigger--subtle:hover {
+.eto-trigger--default:hover {
   background: color-mix(in srgb, var(--eto-accent) 12%, transparent);
   border-color: color-mix(in srgb, var(--eto-accent) 50%, transparent);
   box-shadow: 0 0 20px -2px color-mix(in srgb, var(--eto-accent) 30%, transparent);
 }
-.eto-trigger--subtle svg {
+.eto-trigger--default svg {
   color: var(--eto-accent);
 }
 
-/* ── Attention mode (flashy — sweep + glow + strobe + rattle) ── */
+/* ── Annoying mode (sweep + glow + strobe + rattle) ── */
 
-.eto-trigger--attention {
+.eto-trigger--annoying {
   padding: 6px 16px;
   border-radius: 9999px;
   font-size: 12px;
@@ -1122,27 +1122,11 @@
     eto-trigger-strobe 2s ease-in-out infinite,
     eto-trigger-rattle 2.5s ease-in-out infinite;
 }
-.eto-trigger--attention:hover {
+.eto-trigger--annoying:hover {
   filter: brightness(1.1);
 }
-.eto-trigger--attention svg {
+.eto-trigger--annoying svg {
   color: rgba(255, 255, 255, 0.9);
-}
-
-/* ── Minimal mode (icon-only circle) ── */
-
-.eto-trigger--minimal {
-  padding: 6px;
-  border-radius: 9999px;
-  color: var(--eto-accent);
-  border: 1px solid color-mix(in srgb, var(--eto-accent) 25%, transparent);
-  background: color-mix(in srgb, var(--eto-accent) 5%, transparent);
-  transition: background 150ms, border-color 150ms;
-  animation: eto-trigger-enter 250ms ease-out;
-}
-.eto-trigger--minimal:hover {
-  background: color-mix(in srgb, var(--eto-accent) 12%, transparent);
-  border-color: color-mix(in srgb, var(--eto-accent) 40%, transparent);
 }
 
 .eto-trigger-text {

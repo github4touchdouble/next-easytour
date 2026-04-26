@@ -325,8 +325,8 @@ export interface TutorialTheme {
 export interface TriggerConfig {
   /** Button text. Default "Start tutorial". */
   text?: string;
-  /** Visual mode. Default "subtle". */
-  mode?: "attention" | "subtle" | "minimal";
+  /** Visual mode. Default "default". */
+  mode?: "annoying" | "default";
   /** Show help-circle icon. Default true. */
   icon?: boolean;
 }

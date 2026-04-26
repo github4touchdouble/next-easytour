@@ -136,8 +136,8 @@ export function EditorPanel(props: EditorPanelProps) {
               </Field>
               <Field label="Mode">
                 <div className="eto-panel-toggles">
-                  {(["attention", "subtle", "minimal"] as const).map((m) => (
-                    <Pill key={m} label={m} active={(editor.triggerConfig?.mode ?? "subtle") === m}
+                  {(["default", "annoying"] as const).map((m) => (
+                    <Pill key={m} label={m} active={(editor.triggerConfig?.mode ?? "default") === m}
                       onChange={() => editor.setTriggerConfig({ mode: m })} />
                   ))}
                 </div>
