@@ -31,6 +31,7 @@ export type {
   Arrow as ArrowAnnotation, ArrowStyle, Circle, Annotations,
   Step, StepAction, WaitCondition, HighlightEffect, TransitionConfig,
   TutorialStatus, TutorialApi, TutorialProps, TextLabel,
+  TextLabelAnimation, TextLabelFrame,
   CanEdit, EditorState, SaveHandler, CardVariant, BrandedCardProps,
 } from "./types";
 

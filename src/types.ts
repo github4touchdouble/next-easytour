@@ -56,7 +56,7 @@ export interface Circle {
 
 /** Text annotation placed relative to the target element. */
 export interface TextLabel {
-  /** The text content. */
+  /** The text content (used as initial/static text). */
   text: string;
   /** Position as % of target rect (0–100). */
   position: TargetPoint;
@@ -68,6 +68,30 @@ export interface TextLabel {
   fontSize?: number;
   /** Max width in px before wrapping. Default 200. */
   maxWidth?: number;
+  /** Animated text sequence — cycles through frames within the step. */
+  animation?: TextLabelAnimation;
+}
+
+/** Animated text sequence on a label. */
+export interface TextLabelAnimation {
+  /** Frames to cycle through. Each overrides text and optionally style. */
+  frames: TextLabelFrame[];
+  /** Duration per frame in ms. Default 2000. */
+  frameDuration?: number;
+  /** Transition style between frames. Default "fade". */
+  transition?: "fade" | "slide-up" | "none";
+  /** Loop back to the first frame after the last. Default false. */
+  loop?: boolean;
+  /** Delay before the first frame starts, in ms. Default 0. */
+  delay?: number;
+}
+
+/** A single frame in a label animation sequence. */
+export interface TextLabelFrame {
+  text: string;
+  variant?: TextLabel["variant"];
+  color?: string;
+  fontSize?: number;
 }
 
 export interface Annotations {

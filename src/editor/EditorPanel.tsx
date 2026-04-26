@@ -12,7 +12,7 @@ import { useTutorial } from "../core/Tutorial";
 import { useEditor, type EditorInternalApi } from "./Editor";
 import { OverlayPortal } from "../core/OverlayPortal";
 import { targetPoint } from "../coords";
-import type { Step, TextLabel } from "../types";
+import type { Step, TextLabel, TextLabelAnimation, TextLabelFrame } from "../types";
 
 // ── Icons ───────────────────────────────────────────────────────────────
 
@@ -419,6 +419,9 @@ function StepEditor({ step, index, total, editor }: {
 
             <Slider label="Size" value={lbl.fontSize ?? 12} min={9} max={24}
               onChange={(v) => updateLabel(i, { fontSize: v })} unit="px" />
+
+            {/* Animation */}
+            <LabelAnimationEditor label={lbl} index={i} updateLabel={updateLabel} />
           </div>
         ))}
         <button type="button" className="eto-panel-add-label" onClick={addLabel}>
@@ -478,6 +481,120 @@ function StepEditor({ step, index, total, editor }: {
         <button type="button" className="eto-panel-action eto-panel-action--danger" title="Delete"
           onClick={() => { if (confirm(`Delete "${step.title || step.id}"?`)) editor.removeStep(step.id); }}><Trash /></button>
       </div>
+    </div>
+  );
+}
+
+// ── Label animation editor ──────────────────────────────────────────────
+
+function LabelAnimationEditor({ label, index, updateLabel }: {
+  label: TextLabel;
+  index: number;
+  updateLabel: (idx: number, patch: Partial<TextLabel>) => void;
+}) {
+  const anim = label.animation;
+  const hasAnim = !!anim && anim.frames.length > 0;
+
+  const setAnim = (patch: Partial<TextLabelAnimation>) => {
+    updateLabel(index, {
+      animation: { ...(anim ?? { frames: [] }), ...patch },
+    });
+  };
+
+  const toggleAnim = (on: boolean) => {
+    if (on) {
+      updateLabel(index, {
+        animation: {
+          frames: [
+            { text: label.text, variant: label.variant },
+            { text: "Second frame" },
+          ],
+          frameDuration: 2500,
+          transition: "fade",
+          loop: true,
+        },
+      });
+    } else {
+      updateLabel(index, { animation: undefined });
+    }
+  };
+
+  const addFrame = () => {
+    if (!anim) return;
+    setAnim({ frames: [...anim.frames, { text: `Frame ${anim.frames.length + 1}` }] });
+  };
+
+  const updateFrame = (fi: number, patch: Partial<TextLabelFrame>) => {
+    if (!anim) return;
+    const frames = [...anim.frames];
+    frames[fi] = { ...frames[fi], ...patch };
+    setAnim({ frames });
+  };
+
+  const removeFrame = (fi: number) => {
+    if (!anim) return;
+    const frames = anim.frames.filter((_, i) => i !== fi);
+    if (frames.length === 0) {
+      updateLabel(index, { animation: undefined });
+    } else {
+      setAnim({ frames });
+    }
+  };
+
+  return (
+    <div className="eto-panel-anim">
+      <div className="eto-panel-toggles">
+        <Pill label="Animate" active={hasAnim} onChange={toggleAnim} />
+      </div>
+
+      {hasAnim && anim && (
+        <div className="eto-panel-anim-body">
+          {/* Frames */}
+          {anim.frames.map((fr, fi) => (
+            <div key={fi} className="eto-panel-anim-frame">
+              <span className="eto-panel-anim-frame-num">{fi + 1}</span>
+              <input className="eto-panel-input" value={fr.text}
+                onChange={(e) => updateFrame(fi, { text: e.target.value })}
+                placeholder="Frame text" />
+              <select className="eto-panel-select"
+                value={fr.variant ?? label.variant ?? "callout"}
+                onChange={(e) => updateFrame(fi, { variant: e.target.value as TextLabel["variant"] })}>
+                <option value="callout">callout</option>
+                <option value="badge">badge</option>
+                <option value="tag">tag</option>
+                <option value="code">code</option>
+                <option value="plain">plain</option>
+              </select>
+              {anim.frames.length > 1 && (
+                <button type="button" className="eto-panel-action eto-panel-action--danger"
+                  onClick={() => removeFrame(fi)} title="Remove frame">
+                  <MiniTrash />
+                </button>
+              )}
+            </div>
+          ))}
+          <button type="button" className="eto-panel-add-label" onClick={addFrame}>
+            <Plus /> Frame
+          </button>
+
+          {/* Controls */}
+          <Slider label="Speed" value={anim.frameDuration ?? 2000} min={500} max={8000} step={250}
+            onChange={(v) => setAnim({ frameDuration: v })}
+            unit="ms" formatValue={(v) => `${(v / 1000).toFixed(1)}s`} />
+
+          <div className="eto-panel-toggles">
+            {(["fade", "slide-up", "none"] as const).map((t) => (
+              <Pill key={t} label={t} active={(anim.transition ?? "fade") === t}
+                onChange={() => setAnim({ transition: t })} />
+            ))}
+          </div>
+
+          <div className="eto-panel-toggles">
+            <Pill label="Loop" active={anim.loop ?? false}
+              onChange={(on) => setAnim({ loop: on })} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

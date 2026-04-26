@@ -1058,6 +1058,90 @@
   color: var(--eto-accent);
 }
 
+/* ── Label animation transitions ── */
+
+.eto-label--fade-in {
+  animation: eto-label-fade-in 300ms ease-out;
+}
+.eto-label--fade-out {
+  animation: eto-label-fade-out 300ms ease-in forwards;
+}
+.eto-label--slide-up-in {
+  animation: eto-label-slide-up-in 300ms ease-out;
+}
+.eto-label--slide-up-out {
+  animation: eto-label-slide-up-out 300ms ease-in forwards;
+}
+.eto-label--none-in,
+.eto-label--none-out {
+  animation: none;
+}
+
+@keyframes eto-label-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes eto-label-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes eto-label-slide-up-in {
+  from { opacity: 0; transform: translate(-50%, -90%); }
+  to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+@keyframes eto-label-slide-up-out {
+  from { opacity: 1; transform: translate(-50%, -100%); }
+  to   { opacity: 0; transform: translate(-50%, -110%); }
+}
+
+/* ── Label animation editor controls ── */
+
+.eto-panel-anim {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.eto-panel-anim-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px 0 4px 4px;
+  border-left: 2px solid color-mix(in srgb, var(--eto-accent) 20%, transparent);
+}
+.eto-panel-anim-frame {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.eto-panel-anim-frame-num {
+  width: 14px; height: 14px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--eto-accent) 15%, transparent);
+  color: var(--eto-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700;
+  flex-shrink: 0;
+}
+.eto-panel-anim-frame .eto-panel-input { flex: 1; }
+.eto-panel-anim-frame .eto-panel-action { width: 18px; height: 18px; }
+
+.eto-panel-select {
+  all: unset;
+  box-sizing: border-box;
+  padding: 2px 4px;
+  border: 1px solid var(--eto-border-soft);
+  border-radius: 3px;
+  font-size: 9px;
+  color: var(--eto-muted);
+  background: transparent;
+  cursor: pointer;
+  max-width: 60px;
+}
+.eto-panel-select:focus {
+  border-color: var(--eto-accent);
+  outline: none;
+}
+
 /* ── Label overlay — editor states ── */
 
 .eto-label--editable {
