@@ -17,6 +17,8 @@ export type { CirclesProps } from "./overlay/Circles";
 export { Tooltip } from "./overlay/Tooltip";
 export type { TooltipProps } from "./overlay/Tooltip";
 
+export { Labels } from "./overlay/Labels";
+
 // Editor
 export { Editor, useEditorState } from "./editor/Editor";
 export type { EditorProps } from "./editor/Editor";
@@ -28,7 +30,7 @@ export type {
   TargetPoint, ViewportAnchor,
   Arrow as ArrowAnnotation, ArrowStyle, Circle, Annotations,
   Step, StepAction, WaitCondition, HighlightEffect, TransitionConfig,
-  TutorialStatus, TutorialApi, TutorialProps,
+  TutorialStatus, TutorialApi, TutorialProps, TextLabel,
   CanEdit, EditorState, SaveHandler, CardVariant, BrandedCardProps,
 } from "./types";
 

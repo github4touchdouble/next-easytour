@@ -30,6 +30,7 @@ export const DEFAULT_STYLE: Required<ArrowStyle> = {
   headSize: 8,
   loopEnd: false,
   animated: true,
+  straight: false,
 };
 
 /** Merge a partial style onto the defaults. */
@@ -101,6 +102,11 @@ export function buildPath(
   t: { x: number; y: number },
   style: Required<ArrowStyle>,
 ): string {
+  // Straight line — no curve
+  if (style.straight) {
+    return `M${s.x},${s.y} L${t.x},${t.y}`;
+  }
+
   const dx = t.x - s.x;
   const dy = t.y - s.y;
   const dist = Math.sqrt(dx * dx + dy * dy);

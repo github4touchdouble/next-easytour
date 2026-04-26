@@ -35,6 +35,8 @@ export interface ArrowStyle {
   loopEnd?: boolean;
   /** Animate the arrow drawing on step enter. Default true. */
   animated?: boolean;
+  /** Draw a straight line instead of a Bézier curve. Default false. */
+  straight?: boolean;
 }
 
 export interface Arrow {
@@ -52,10 +54,28 @@ export interface Circle {
   label?: string;
 }
 
+/** Text annotation placed relative to the target element. */
+export interface TextLabel {
+  /** The text content. */
+  text: string;
+  /** Position as % of target rect (0–100). */
+  position: TargetPoint;
+  /** Visual style. Default "callout". */
+  variant?: "plain" | "callout" | "badge" | "tag" | "code";
+  /** Text colour override. */
+  color?: string;
+  /** Font size in px. Default 12. */
+  fontSize?: number;
+  /** Max width in px before wrapping. Default 200. */
+  maxWidth?: number;
+}
+
 export interface Annotations {
   arrow?: Arrow;
   circles?: Circle[];
   spotlight?: boolean;
+  /** Text labels placed on or near the target. */
+  labels?: TextLabel[];
 }
 
 // ── Step actions (NEW) ──────────────────────────────────────────────────

@@ -3,12 +3,7 @@
 /**
  * @module editor/EditorPanel
  *
- * Alpha.13: Figma-style editor panel.
- *   - Range sliders for bend, stroke, head size
- *   - Visual preset buttons for arrow curvature
- *   - Toggle pills for boolean overlays
- *   - Collapsible sections
- *   - Add / duplicate / reorder / delete
+ * Alpha.14: adds straight arrow preset, text label editor.
  */
 
 import * as React from "react";
@@ -17,7 +12,7 @@ import { useTutorial } from "../core/Tutorial";
 import { useEditor, type EditorInternalApi } from "./Editor";
 import { OverlayPortal } from "../core/OverlayPortal";
 import { targetPoint } from "../coords";
-import type { Step } from "../types";
+import type { Step, TextLabel } from "../types";
 
 // ── Icons ───────────────────────────────────────────────────────────────
 
@@ -49,10 +44,23 @@ const Copy = () => (
     <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 );
+const MiniTrash = () => (
+  <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="4" y1="4" x2="20" y2="20" /><line x1="20" y1="4" x2="4" y2="20" />
+  </svg>
+);
 
-// ── Mini arrow preview SVGs for curvature presets ────────────────────
+// ── Arrow preview SVGs ──────────────────────────────────────────────────
 
-function ArrowPreview({ bend }: { bend: number }) {
+function ArrowStraightPreview() {
+  return (
+    <svg viewBox="0 0 40 20" width="40" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <line x1="4" y1="16" x2="36" y2="16" />
+      <polyline points="32,12 36,16 32,20" strokeWidth="1.5" />
+    </svg>
+  );
+}
+function ArrowCurvePreview({ bend }: { bend: number }) {
   const cp = bend * 0.6;
   return (
     <svg viewBox="0 0 40 20" width="40" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -173,17 +181,17 @@ function StepCard({ step, index, total, isActive, isExpanded, onToggle, onSelect
   );
 }
 
-/** Mini dots showing which overlays are active. */
 function OverlayDots({ step }: { step: Step<unknown> }) {
-  const items: { label: string; on: boolean }[] = [
+  const items = [
     { label: "S", on: !!step.annotations?.spotlight },
     { label: "H", on: !!step.highlight },
     { label: "→", on: !!step.annotations?.arrow },
+    { label: "T", on: (step.annotations?.labels?.length ?? 0) > 0 },
   ];
   return (
     <span className="eto-panel-step-dots">
       {items.map((d) => (
-        <span key={d.label} className={`eto-panel-dot${d.on ? " eto-panel-dot--on" : ""}`} title={d.label}>{d.label}</span>
+        <span key={d.label} className={`eto-panel-dot${d.on ? " eto-panel-dot--on" : ""}`}>{d.label}</span>
       ))}
     </span>
   );
@@ -204,6 +212,7 @@ function StepEditor({ step, index, total, editor }: {
   const hasArrow = !!arrow;
   const hasSpotlight = !!annotations.spotlight;
   const hasHighlight = !!step.highlight;
+  const labels = annotations.labels ?? [];
 
   const setAnnotation = useCallback(
     (key: string, value: unknown) => {
@@ -231,6 +240,31 @@ function StepEditor({ step, index, total, editor }: {
     [annotations, arrow, update],
   );
 
+  const updateLabel = useCallback(
+    (idx: number, patch: Partial<TextLabel>) => {
+      const newLabels = [...labels];
+      newLabels[idx] = { ...newLabels[idx], ...patch };
+      update({ annotations: { ...annotations, labels: newLabels } });
+    },
+    [annotations, labels, update],
+  );
+
+  const addLabel = useCallback(() => {
+    const newLabel: TextLabel = {
+      text: "Label",
+      position: { space: "target", x: 50, y: 0 },
+      variant: "callout",
+    };
+    update({ annotations: { ...annotations, labels: [...labels, newLabel] } });
+  }, [annotations, labels, update]);
+
+  const removeLabel = useCallback((idx: number) => {
+    const newLabels = labels.filter((_, i) => i !== idx);
+    update({ annotations: { ...annotations, labels: newLabels.length > 0 ? newLabels : undefined } });
+  }, [annotations, labels, update]);
+
+  const isStraight = !!arrow?.style?.straight;
+
   return (
     <div className="eto-panel-editor">
       {/* ── Content ── */}
@@ -247,7 +281,7 @@ function StepEditor({ step, index, total, editor }: {
 
       {/* ── Target ── */}
       <Section title="Target">
-        <Field label="CSS selector">
+        <Field label="Selector">
           <input className="eto-panel-input eto-panel-input--mono" value={step.selector ?? ""}
             onChange={(e) => update({ selector: e.target.value || undefined })}
             placeholder='[data-tour="element"]' />
@@ -271,48 +305,53 @@ function StepEditor({ step, index, total, editor }: {
       {/* ── Arrow config ── */}
       {hasArrow && (
         <Section title="Arrow">
-          {/* Curvature presets */}
-          <Field label="Curve">
+          {/* Shape presets */}
+          <Field label="Shape">
             <div className="eto-panel-presets">
+              <button type="button"
+                className={`eto-panel-preset${isStraight ? " eto-panel-preset--active" : ""}`}
+                onClick={() => setArrowStyle({ straight: true, bend: 0 })}
+                title="Straight">
+                <ArrowStraightPreview />
+              </button>
               {[
-                { label: "Straight", bend: 5 },
-                { label: "Gentle", bend: 20 },
-                { label: "Curved", bend: 40 },
-                { label: "Strong", bend: 65 },
+                { label: "Gentle", bend: 15 },
+                { label: "Curved", bend: 35 },
+                { label: "Strong", bend: 60 },
               ].map((p) => (
                 <button key={p.label} type="button"
-                  className={`eto-panel-preset${(arrow.style?.bend ?? 30) === p.bend ? " eto-panel-preset--active" : ""}`}
-                  onClick={() => setArrowStyle({ bend: p.bend })}
+                  className={`eto-panel-preset${!isStraight && (arrow.style?.bend ?? 30) === p.bend ? " eto-panel-preset--active" : ""}`}
+                  onClick={() => setArrowStyle({ straight: false, bend: p.bend })}
                   title={p.label}>
-                  <ArrowPreview bend={p.bend} />
+                  <ArrowCurvePreview bend={p.bend} />
                 </button>
               ))}
             </div>
           </Field>
 
-          {/* Bend slider */}
-          <Slider label="Bend" value={arrow.style?.bend ?? 30} min={0} max={80}
-            onChange={(v) => setArrowStyle({ bend: v })} unit="°" />
+          {/* Bend slider (only for curves) */}
+          {!isStraight && (
+            <Slider label="Bend" value={arrow.style?.bend ?? 30} min={0} max={80}
+              onChange={(v) => setArrowStyle({ bend: v })} unit="°" />
+          )}
 
-          {/* Stroke slider */}
           <Slider label="Stroke" value={arrow.style?.strokeWidth ?? 1.5} min={0.5} max={6} step={0.5}
             onChange={(v) => setArrowStyle({ strokeWidth: v })} unit="px" />
 
-          {/* Head size slider */}
           <Slider label="Head" value={arrow.style?.headSize ?? 8} min={4} max={16}
             onChange={(v) => setArrowStyle({ headSize: v })} unit="px" />
 
-          {/* Style toggles */}
           <div className="eto-panel-toggles">
-            <Pill label="Flip" active={!!arrow.style?.flip}
-              onChange={(on) => setArrowStyle({ flip: on })} />
+            {!isStraight && (
+              <Pill label="Flip" active={!!arrow.style?.flip}
+                onChange={(on) => setArrowStyle({ flip: on })} />
+            )}
             <Pill label="Dashed" active={!!arrow.style?.dashed}
               onChange={(on) => setArrowStyle({ dashed: on })} />
             <Pill label="Loop end" active={!!arrow.style?.loopEnd}
               onChange={(on) => setArrowStyle({ loopEnd: on })} />
           </div>
 
-          {/* Label */}
           <Field label="Label">
             <input className="eto-panel-input" value={arrow.label ?? ""}
               onChange={(e) => update({
@@ -323,6 +362,55 @@ function StepEditor({ step, index, total, editor }: {
         </Section>
       )}
 
+      {/* ── Text labels ── */}
+      <Section title="Text labels">
+        {labels.map((lbl, i) => (
+          <div key={i} className="eto-panel-label-card">
+            <div className="eto-panel-label-row">
+              <input className="eto-panel-input" value={lbl.text}
+                onChange={(e) => updateLabel(i, { text: e.target.value })}
+                placeholder="Label text" />
+              <button type="button" className="eto-panel-action eto-panel-action--danger"
+                onClick={() => removeLabel(i)} title="Remove label">
+                <MiniTrash />
+              </button>
+            </div>
+            <div className="eto-panel-label-controls">
+              {/* Variant */}
+              <div className="eto-panel-toggles">
+                {(["callout", "badge", "tag", "code", "plain"] as const).map((v) => (
+                  <Pill key={v} label={v} active={( lbl.variant ?? "callout") === v}
+                    onChange={() => updateLabel(i, { variant: v })} />
+                ))}
+              </div>
+              {/* Position presets */}
+              <div className="eto-panel-label-pos">
+                <span className="eto-panel-field-label">Position</span>
+                {[
+                  { label: "↑ Top", x: 50, y: -5 },
+                  { label: "↓ Bottom", x: 50, y: 105 },
+                  { label: "← Left", x: -5, y: 50 },
+                  { label: "→ Right", x: 105, y: 50 },
+                  { label: "⊙ Center", x: 50, y: 50 },
+                ].map((p) => (
+                  <button key={p.label} type="button"
+                    className={`eto-panel-pos-btn${lbl.position.x === p.x && lbl.position.y === p.y ? " eto-panel-pos-btn--active" : ""}`}
+                    onClick={() => updateLabel(i, { position: targetPoint(p.x, p.y) })}
+                    title={p.label}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <Slider label="Size" value={lbl.fontSize ?? 12} min={9} max={24}
+                onChange={(v) => updateLabel(i, { fontSize: v })} unit="px" />
+            </div>
+          </div>
+        ))}
+        <button type="button" className="eto-panel-add-label" onClick={addLabel}>
+          <Plus /> Add label
+        </button>
+      </Section>
+
       {/* ── Timing ── */}
       <Section title="Timing">
         <Slider label="Auto-advance" value={step.autoAdvance ?? 0} min={0} max={10000} step={500}
@@ -330,11 +418,9 @@ function StepEditor({ step, index, total, editor }: {
           unit="ms" formatValue={(v) => v === 0 ? "off" : `${(v / 1000).toFixed(1)}s`} />
       </Section>
 
-      {/* ── Position (per-step override) ── */}
-      <Section title="Position (this step only)" collapsible defaultOpen={false}>
-        <p className="eto-panel-hint">
-          Leave empty to use the global position (set via "Move all" in the toolbar).
-        </p>
+      {/* ── Position ── */}
+      <Section title="Position (this step)" collapsible defaultOpen={false}>
+        <p className="eto-panel-hint">Leave empty to use the global position.</p>
         <Field label="X">
           <div className="eto-panel-inline">
             <input className="eto-panel-input eto-panel-input--narrow" type="number"
@@ -359,7 +445,7 @@ function StepEditor({ step, index, total, editor }: {
         </Field>
       </Section>
 
-      {/* ── Step ID (read-only) ── */}
+      {/* ── ID ── */}
       <div className="eto-panel-id">
         <span className="eto-panel-id-label">ID</span>
         <code className="eto-panel-id-value">{step.id}</code>
@@ -388,7 +474,6 @@ function Section({ title, children, collapsible, defaultOpen = true }: {
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const isCollapsible = collapsible ?? false;
-
   return (
     <div className="eto-panel-section">
       <div className={`eto-panel-section-title${isCollapsible ? " eto-panel-section-title--btn" : ""}`}
@@ -397,9 +482,7 @@ function Section({ title, children, collapsible, defaultOpen = true }: {
         {title}
         {isCollapsible && <Chevron open={open} />}
       </div>
-      {(!isCollapsible || open) && (
-        <div className="eto-panel-section-body">{children}</div>
-      )}
+      {(!isCollapsible || open) && <div className="eto-panel-section-body">{children}</div>}
     </div>
   );
 }
@@ -415,25 +498,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Pill({ label, active, onChange }: { label: string; active: boolean; onChange: (on: boolean) => void }) {
   return (
-    <button type="button"
-      className={`eto-panel-pill${active ? " eto-panel-pill--on" : ""}`}
-      onClick={() => onChange(!active)}>
-      {label}
-    </button>
+    <button type="button" className={`eto-panel-pill${active ? " eto-panel-pill--on" : ""}`}
+      onClick={() => onChange(!active)}>{label}</button>
   );
 }
 
 function Slider({ label, value, min, max, step = 1, unit, onChange, formatValue }: {
   label: string; value: number; min: number; max: number; step?: number;
-  unit?: string; onChange: (v: number) => void;
-  formatValue?: (v: number) => string;
+  unit?: string; onChange: (v: number) => void; formatValue?: (v: number) => string;
 }) {
   const display = formatValue ? formatValue(value) : `${Math.round(value * 10) / 10}`;
   return (
     <div className="eto-panel-slider-row">
       <label className="eto-panel-field-label">{label}</label>
-      <input type="range" className="eto-panel-slider"
-        min={min} max={max} step={step} value={value}
+      <input type="range" className="eto-panel-slider" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))} />
       <span className="eto-panel-slider-val">{display}{unit && <span className="eto-panel-unit">{unit}</span>}</span>
     </div>
@@ -443,13 +521,9 @@ function Slider({ label, value, min, max, step = 1, unit, onChange, formatValue 
 function unsavedCount(o: any): number {
   if (!o) return 0;
   return (
-    Object.keys(o.cardAnchors ?? {}).length +
-    Object.keys(o.arrowTips ?? {}).length +
-    Object.keys(o.circles ?? {}).length +
-    Object.keys(o.newArrows ?? {}).length +
-    Object.keys(o.stepEdits ?? {}).length +
-    (o.addedSteps?.length ?? 0) +
-    (o.removedIds?.length ?? 0) +
-    (o.defaultCardAnchor ? 1 : 0)
+    Object.keys(o.cardAnchors ?? {}).length + Object.keys(o.arrowTips ?? {}).length +
+    Object.keys(o.circles ?? {}).length + Object.keys(o.newArrows ?? {}).length +
+    Object.keys(o.stepEdits ?? {}).length + (o.addedSteps?.length ?? 0) +
+    (o.removedIds?.length ?? 0) + (o.defaultCardAnchor ? 1 : 0)
   );
 }
