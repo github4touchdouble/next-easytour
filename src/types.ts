@@ -227,6 +227,8 @@ export interface TutorialProps<Meta = never> {
 export interface TutorialApi<Meta = never> {
   status: TutorialStatus;
   step: Step<Meta> | null;
+  /** All steps in the tutorial. */
+  steps: Step<Meta>[];
   index: number;
   total: number;
   isFirst: boolean;

@@ -65,7 +65,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   } = props;
   const api = useTutorial<Meta>();
   const {
-    step, index, total, isFirst, isLast, canAdvance, isWaiting,
+    step, steps: allSteps, index, total, isFirst, isLast, canAdvance, isWaiting,
     next, prev, close, defaultCardAnchor, cardPositioning,
   } = api;
 
@@ -74,20 +74,32 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   const bodyId = `${baseId}-body`;
 
   // ── Card rect publication ─────────────────────────────────────────────
-  // Publish the card's live bounding rect so <Arrow> and <EditorHandles>
-  // can read it. Uses a rAF loop instead of ResizeObserver alone because
-  // editor drags change the card's position without changing its size,
-  // and ResizeObserver only fires on size changes.
   const cardRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
   const setCardRect = useCardRectSetter();
   const lastRectRef = useRef<Rect | null>(null);
   const rafRef = useRef<number>(0);
 
-  // ── Stable card sizing ────────────────────────────────────────────────
-  // Track the maximum height the card reaches across all steps.
-  // Apply as minHeight so the card never shrinks → no visual jump.
-  const maxHeightRef = useRef<number>(0);
+  // ── Uniform card sizing ───────────────────────────────────────────────
+  // Pre-measure ALL steps in a hidden off-screen container on mount.
+  // The max height becomes `stableMinHeight` — applied from step 1.
   const [stableMinHeight, setStableMinHeight] = useState<number>(0);
+  const measuredRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (measuredRef.current || !measureRef.current) return;
+    const container = measureRef.current;
+    const children = container.querySelectorAll<HTMLElement>("[data-eto-measure]");
+    let max = 0;
+    children.forEach((el) => {
+      const h = el.getBoundingClientRect().height;
+      if (h > max) max = h;
+    });
+    if (max > 0) {
+      setStableMinHeight(max);
+      measuredRef.current = true;
+    }
+  });
 
   useLayoutEffect(() => {
     if (!cardRef.current) return;
@@ -97,13 +109,6 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
     const read = () => {
       const r = el.getBoundingClientRect();
       const next: Rect = { left: r.left, top: r.top, width: r.width, height: r.height };
-
-      // Grow-only: update stable height when content is taller
-      if (r.height > maxHeightRef.current + 0.5) {
-        maxHeightRef.current = r.height;
-        setStableMinHeight(r.height);
-      }
-
       const prev = lastRectRef.current;
       if (
         prev &&
@@ -200,17 +205,15 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
 
   if (!step) return null;
 
+  const isRenderProp = typeof children === "function";
+  const renderFn = isRenderProp ? (children as (a: CardRenderArgs<Meta>) => React.ReactNode) : null;
+
+  // Build render args for the active step
   const renderArgs: CardRenderArgs<Meta> = {
     step, index, total, isFirst, isLast, canAdvance, isWaiting, stableMinHeight, next, prev, close,
   };
-  const isRenderProp = typeof children === "function";
-  const rendered = isRenderProp
-    ? (children as (a: CardRenderArgs<Meta>) => React.ReactNode)(renderArgs)
-    : null;
+  const rendered = renderFn ? renderFn(renderArgs) : null;
 
-  // When render-prop mode is active, the wrapper is just a positioning
-  // container — the host's render-prop provides all visual styling.
-  // .eto-card--custom strips border/shadow/bg from the wrapper.
   const className = [
     "eto-card",
     isRenderProp ? "eto-card--custom" : "",
@@ -222,8 +225,41 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
     ...(stableMinHeight > 0 ? { minHeight: stableMinHeight } : {}),
   };
 
+  // ── Hidden measurement container ────────────────────────────────────
+  // Renders every step's content off-screen once to find the tallest.
+  // After measurement, the container is removed (measuredRef = true).
+  const measureContainer = !measuredRef.current ? (
+    <div
+      ref={measureRef}
+      aria-hidden="true"
+      style={{
+        position: "fixed",
+        left: -9999,
+        top: -9999,
+        visibility: "hidden",
+        pointerEvents: "none",
+        width: "min(420px, calc(100vw - 2rem))",
+      }}
+    >
+      {allSteps.map((s, i) => {
+        const mockArgs: CardRenderArgs<Meta> = {
+          step: s, index: i, total, isFirst: i === 0, isLast: i === total - 1,
+          canAdvance: true, isWaiting: false, stableMinHeight: 0, next, prev, close,
+        };
+        return (
+          <div key={s.id} data-eto-measure>
+            {renderFn ? renderFn(mockArgs) : (
+              <DefaultCardBody api={{ ...api, step: s, index: i } as TutorialApi<unknown>} titleId="" bodyId="" />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
   return (
     <OverlayPortal>
+    {measureContainer}
     <div
       ref={cardRef}
       className={className}

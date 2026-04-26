@@ -428,6 +428,7 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
   const api = useMemo<TutorialApi<Meta>>(
     () => ({
       ...snapshot,
+      steps,
       next,
       prev,
       goto,
@@ -436,7 +437,7 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
       defaultCardAnchor,
       cardPositioning,
     }),
-    [snapshot, next, prev, goto, close, getTargetElement, defaultCardAnchor, cardPositioning],
+    [snapshot, steps, next, prev, goto, close, getTargetElement, defaultCardAnchor, cardPositioning],
   );
 
   // ── Card rect store ───────────────────────────────────────────────────
