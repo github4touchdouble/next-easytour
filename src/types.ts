@@ -248,6 +248,7 @@ export interface TutorialApi<Meta = never> {
 
 export type SaveHandler<Meta = never> = (
   steps: Step<Meta>[],
+  options?: { triggerConfig?: TriggerConfig },
 ) => void | Promise<void>;
 
 export type CanEdit =

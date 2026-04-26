@@ -79,7 +79,8 @@ function unsavedCountOf(o: Overrides): number {
     Object.keys(o.stepEdits).length +
     o.addedSteps.length +
     o.removedIds.length +
-    (o.defaultCardAnchor ? 1 : 0)
+    (o.defaultCardAnchor ? 1 : 0) +
+    (o.triggerConfig ? 1 : 0)
   );
 }
 
@@ -354,6 +355,7 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
   // ── Save ──────────────────────────────────────────────────────────────
   const save = useCallback(async () => {
     const payload = mergeOverrides(baseSteps, overrides);
+    const triggerCfg = overrides.triggerConfig;
     setSaveStatus("saving");
     const clearLater = () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -361,16 +363,24 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
     };
     try {
       if (onSave) {
-        await onSave(payload);
+        await onSave(payload, triggerCfg ? { triggerConfig: triggerCfg } : undefined);
       } else {
-        await navigator.clipboard?.writeText(JSON.stringify(payload, null, 2));
+        const clipData = triggerCfg
+          ? { steps: payload, triggerConfig: triggerCfg }
+          : payload;
+        await navigator.clipboard?.writeText(JSON.stringify(clipData, null, 2));
       }
       setSaveStatus("saved");
       setOverrides(EMPTY_OVERRIDES);
       onSaved?.();
       clearLater();
     } catch {
-      try { await navigator.clipboard?.writeText(JSON.stringify(payload, null, 2)); } catch {}
+      try {
+        const clipData = triggerCfg
+          ? { steps: payload, triggerConfig: triggerCfg }
+          : payload;
+        await navigator.clipboard?.writeText(JSON.stringify(clipData, null, 2));
+      } catch {}
       setSaveStatus("error");
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => setSaveStatus("idle"), 3000);

@@ -662,6 +662,7 @@ function unsavedCount(o: any): number {
     Object.keys(o.cardAnchors ?? {}).length + Object.keys(o.arrowTips ?? {}).length +
     Object.keys(o.circles ?? {}).length + Object.keys(o.newArrows ?? {}).length +
     Object.keys(o.stepEdits ?? {}).length + (o.addedSteps?.length ?? 0) +
-    (o.removedIds?.length ?? 0) + (o.defaultCardAnchor ? 1 : 0)
+    (o.removedIds?.length ?? 0) + (o.defaultCardAnchor ? 1 : 0) +
+    (o.triggerConfig ? 1 : 0)
   );
 }
