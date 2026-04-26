@@ -100,6 +100,8 @@ function EditorToolbar() {
   }, [cardRect, step?.id]);
 
   // ── Card drag — sets position for ALL steps ───────────────────────
+  // Sets both per-step anchor (immediate visual feedback during drag)
+  // and global defaultCardAnchor (applied to all steps on save).
   const onMoveDown = useCallback(
     (e: React.MouseEvent) => {
       if (!step) return;
@@ -113,10 +115,11 @@ function EditorToolbar() {
       const offsetY = e.clientY - rect.top;
 
       const onMove = (ev: MouseEvent) => {
+        let anchor: { space: "viewport"; x: number; y: number };
         if (isAbsolute) {
           const pageX = ev.clientX - offsetX + window.scrollX;
           const pageY = ev.clientY - offsetY + window.scrollY;
-          editor.setDefaultCardAnchor({ space: "viewport", x: pageX, y: pageY });
+          anchor = { space: "viewport", x: pageX, y: pageY };
         } else {
           const vw = window.innerWidth;
           const vh = window.innerHeight;
@@ -125,11 +128,13 @@ function EditorToolbar() {
             { width: vw, height: vh },
           );
           const cr = cardRectRef.current;
-          const clamped = cr
+          anchor = cr
             ? clampViewportAnchor(raw, { width: cr.width, height: cr.height }, { width: vw, height: vh })
             : raw;
-          editor.setDefaultCardAnchor(clamped);
         }
+        // Per-step for immediate feedback + global for all steps
+        editor.setCardAnchor(step.id, anchor);
+        editor.setDefaultCardAnchor(anchor);
       };
       const onUp = () => {
         setDraggingCard(false);
@@ -194,30 +199,25 @@ function EditorToolbar() {
   const saving = editor.saveStatus === "saving";
   const saved = editor.saveStatus === "saved";
 
-  // Compute toolbar position (fallback to top-left if no cardRect yet)
+  // Compute toolbar position — wait for cardRect, don't render at wrong position
+  if (!cardRect) return null;
+
   const scrollX = isAbsolute ? window.scrollX : 0;
   const scrollY = isAbsolute ? window.scrollY : 0;
-  const toolbarStyle: React.CSSProperties = cardRect
-    ? {
-        position: isAbsolute ? "absolute" : "fixed",
-        left: cardRect.left + scrollX,
-        top: (cardRect.top - 40 >= 4)
-          ? cardRect.top - 40 + scrollY
-          : cardRect.top + cardRect.height + 6 + scrollY,
-        zIndex: 61,
-      }
-    : {
-        position: "fixed",
-        left: 16,
-        top: 16,
-        zIndex: 61,
-      };
+  const toolbarStyle: React.CSSProperties = {
+    position: isAbsolute ? "absolute" : "fixed",
+    left: cardRect.left + scrollX,
+    top: (cardRect.top - 40 >= 4)
+      ? cardRect.top - 40 + scrollY
+      : cardRect.top + cardRect.height + 6 + scrollY,
+    zIndex: 61,
+  };
 
   return (
     <div className="eto-editor-toolbar" style={toolbarStyle}>
       <button type="button"
-        className={`eto-editor-tool${draggingCard ? " eto-tool-active" : ""}${!cardRect ? " eto-tool-disabled" : ""}`}
-        onMouseDown={cardRect ? onMoveDown : undefined}
+        className={`eto-editor-tool${draggingCard ? " eto-tool-active" : ""}`}
+        onMouseDown={onMoveDown}
         title="Drag to move card (all steps)">
         <MoveIcon />
         <span className="eto-tool-label">Move all</span>
