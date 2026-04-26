@@ -237,11 +237,13 @@ export interface EditorProps<Meta = never> {
   onSave?: SaveHandler<Meta>;
   onSaved?: () => void;
   canEdit?: CanEdit;
+  /** Current trigger button config — the panel shows these as defaults. */
+  triggerConfig?: TriggerConfig;
   children: (args: { steps: Step<Meta>[] }) => React.ReactNode;
 }
 
 export function Editor<Meta = never>(props: EditorProps<Meta>) {
-  const { steps: baseSteps, onSave, onSaved, canEdit, children } = props;
+  const { steps: baseSteps, onSave, onSaved, canEdit, triggerConfig: baseTriggerConfig, children } = props;
   const active = useResolveCanEdit(canEdit);
 
   const [overrides, setOverrides] = useState<Overrides>(EMPTY_OVERRIDES);
@@ -397,13 +399,15 @@ export function Editor<Meta = never>(props: EditorProps<Meta>) {
       setCardAnchor, clearCardAnchor, setArrowTip, setArrow, setCircles,
       updateStep, addStep, removeStep, moveStep,
       setDefaultCardAnchor,
-      triggerConfig: overrides.triggerConfig,
+      triggerConfig: overrides.triggerConfig
+        ? { ...(baseTriggerConfig ?? {}), ...overrides.triggerConfig }
+        : baseTriggerConfig,
       setTriggerConfig,
       save, revert, saveStatus,
     }),
     [active, overrides, mergedSteps, setCardAnchor, clearCardAnchor,
      setArrowTip, setArrow, setCircles, updateStep, addStep, removeStep,
-     moveStep, setDefaultCardAnchor, setTriggerConfig, save, revert, saveStatus],
+     moveStep, setDefaultCardAnchor, setTriggerConfig, baseTriggerConfig, save, revert, saveStatus],
   );
 
   return (
