@@ -1,4 +1,4 @@
-// next-easytour 0.3.0-alpha.6 — public API surface
+// next-easytour 0.3.0 — public API surface
 
 // Core
 export { Tutorial, useTutorial } from "./core/Tutorial";

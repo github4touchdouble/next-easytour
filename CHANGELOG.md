@@ -1,345 +1,174 @@
 # Changelog
 
-## [0.3.0-alpha.3] — 2026-04-23
+## [0.3.0] — 2026-04-26
 
-Generalisation release. The library shifts from a headless-only posture
-to batteries-included: CSS-selector targeting, declarative step actions,
-wait conditions, auto-scroll, highlights, and animated transitions —
-all configurable per step in JSON, no custom host code needed.
-
-### Added
-
-- **CSS-selector targeting.** Steps can declare `selector: "#my-element"`
-  to target any element on the page without touching its source code.
-  The library calls `document.querySelector` on step enter and registers
-  the result into the target registry automatically. Hook-based
-  `useTutorialTarget` still works and takes precedence when both are
-  present.
-
-  ```tsx
-  { id: "save", selector: "#save-btn", annotations: { spotlight: true } }
-  ```
-
-- **Step actions.** `step.actions` is an ordered list of declarative
-  side-effects that fire in sequence on step enter. Available actions:
-  `scroll-into-view`, `click`, `focus`, `highlight`, `add-class`,
-  `remove-class`, `set-attribute`, `dispatch`, `wait`. Eliminates
-  custom `onStepEnter` handlers for common tutorial patterns.
-
-  ```tsx
-  actions: [
-    { type: "scroll-into-view", behavior: "smooth" },
-    { type: "wait", ms: 500 },
-    { type: "highlight", pulse: true },
-  ]
-  ```
-
-- **WaitFor conditions.** `step.waitFor` blocks forward navigation
-  until a condition is met. Types: `click` (wait for user click on a
-  target), `input` (wait for text matching a regex), `event` (wait
-  for a custom DOM event), `delay` (wait N milliseconds), `visible`
-  (wait for an element to appear in the DOM), `custom` (poll a
-  predicate function).
-
-  ```tsx
-  waitFor: { type: "click", selector: "#submit-btn" }
-  ```
-
-- **Auto-scroll.** `step.scrollIntoView` (or the global `scrollIntoView`
-  prop on `<Tutorial>`) scrolls the target element into the viewport
-  before rendering the step. Accepts `true` (defaults to
-  `{ behavior: "smooth", block: "center" }`) or a full
-  `ScrollIntoViewOptions` object.
-
-- **Auto-advance.** `step.autoAdvance` (ms) automatically moves to
-  the next step after a delay. Fires after `waitFor` if both are set.
-  Useful for intro/welcome steps that don't require user interaction.
-
-- **Highlight effects.** `step.highlight` renders a pulsing ring
-  around the target element for the duration of the step. Accepts
-  `true` (default pulse in accent colour) or an object with `pulse`,
-  `color`, `padding`, `borderRadius` overrides.
-
-- **Card entrance animations.** Three built-in entrance animations
-  for the card: `"fade"`, `"fade-slide"` (default), `"scale"`.
-  Configurable per step via `step.transition` or globally via the
-  `transition` prop on `<Tutorial>`.
-
-- **Arrow draw-on animation.** The Bézier arrow animates its stroke
-  from source to tip over 400ms using SVG `stroke-dashoffset`. Opt
-  out per arrow via `arrow.style.animated: false`.
-
-- **`step.content` JSX body.** Steps can provide a React node as
-  `content` which takes precedence over the `body` string. Useful
-  for steps that need inline links, images, or interactive elements.
-
-- **`<Tooltip>` component.** A lightweight popover alternative to
-  `<Card>` for simple annotations. Positions itself relative to the
-  target (top/bottom/left/right) with no navigation controls — ideal
-  for auto-advancing or context-only steps.
-
-- **`isWaiting` on TutorialApi.** `useTutorial()` now exposes
-  `isWaiting: boolean` so custom cards can render a waiting indicator.
-
-- **`getTargetElement()` on TutorialApi.** Returns the resolved
-  target element (checking hook registry first, then CSS selector).
-  Useful for host code that needs to interact with the target.
-
-- **`onWaitComplete` callback.** Fires when a `waitFor` condition
-  transitions from pending to satisfied.
-
-- **`"waiting"` status.** The tutorial status machine adds a
-  `"waiting"` state when a `waitFor` condition is active.
-
-### Changed
-
-- **Default card animation** is `"fade-slide"` (was `"fade"`).
-- **Spotlight cutouts** smoothly transition position/size between
-  steps via CSS transitions (300ms ease).
-- **Target resolution** now checks both the hook registry and CSS
-  selectors for all overlay components (Arrow, Spotlight, Circles).
-- **`CardRenderArgs`** includes `isWaiting: boolean`.
-
-### Migration from alpha.2
-
-Existing alpha.2 consumers:
-
-- All existing code works without changes. The new features are
-  additive — `selector`, `actions`, `waitFor`, `autoAdvance`,
-  `highlight`, `transition`, `content`, and `scrollIntoView` are all
-  optional fields that default to the alpha.2 behaviour when absent.
-- The card now applies `"fade-slide"` animation by default. Pass
-  `transition={{ enter: "fade" }}` to restore the alpha.2 opacity-only
-  entrance.
-- `<Card>` render-prop args now include `isWaiting`. TypeScript
-  consumers may see a type error if their custom card destructures
-  exhaustively — add `isWaiting` to the destructure.
-
-## [0.3.0-alpha.2] — 2026-04-23
-
-Internal build iteration. No functional changes from alpha.1.
-
-## [0.3.0-alpha.1] — 2026-04-23
-
-Visibility and authoring fixes on the 0.3.0 alpha series. No breaking
-surface changes for consumers who only use `<Tutorial>` + `<Card>` +
-`<Arrow>`; additive API for authoring-heavy consumers.
-
-### Fixed
-
-- **Editor handles were invisible against light backgrounds.** The
-  `.eto-editor-card-handle` was a 60 %-opacity accent-tinted blob that
-  vanished on near-white surfaces. Both handles now ship as solid
-  filled controls with visible borders, a grip-dots SVG icon on the
-  card handle, and a larger hit target (28×28 card, 18×18 tip).
-- **`mergeOverrides` silently dropped arrow-tip overrides on steps
-  without an existing arrow.** The merge guard `if (arrowTipOverride
-  && annotations.arrow)` prevented authors from adding a tip to a
-  target-only step. Now the merge constructs a minimal arrow when
-  needed (`annotations.arrow = { to: override }`), so drag-to-create
-  works through the editor's normal override channel.
-- **Targetless steps lost their connection to the UI.** A step with no
-  `cardAnchor` and no `targets` previously rendered bottom-centre with
-  no visual link to anything. The default for targetless steps is now
-  centred in the viewport so the card reads as a modal introduction
-  rather than a detached footer note. Steps that *do* have a target
-  keep the bottom-centre default, since the arrow supplies the
-  connection.
+Complete rewrite. The library shifts from a monolithic `<TutorialOverlay>`
+component to a headless provider plus composable overlay primitives.
+Branding moves to host code via render-prop; the library owns state,
+coordinates, animations, and rendering.
 
 ### Added
 
-- **`<Card variant="branded">`** — an opt-in default card with a
-  gradient accent header, logo slot, progress dots, and a primary
-  accent Next button. Matches the visual weight of 0.2.x's built-in
-  card without forcing every host to write their own render-prop
-  from scratch.
+- **Composable overlay primitives.** `<Tutorial>`, `<Card>`, `<Arrow>`,
+  `<Spotlight>`, `<Circles>`, `<Labels>`, `<Tooltip>`. Compose only the
+  parts you need.
 
-  ```tsx
-  <Card
-    variant="branded"
-    logo="/my-logo.svg"
-    logoAlt="My product"
-    labels={{ back: "Back", next: "Next", done: "Finish", close: "Close" }}
-  />
-  ```
+- **CSS-selector targeting.** Steps declare `selector: "#my-element"` to
+  target any element without touching its source code. The library calls
+  `querySelector` on step enter. Hook-based `useTutorialTarget` still
+  works and takes precedence.
 
-- **`useEditorState()` exposes mutators when the editor is active.**
-  Authoring UIs can now call `setCardAnchor`, `setArrowTip`,
-  `setArrow` (new — seeds both the target and the tip on a step
-  with no arrow), and `setCircles` directly, without having to write
-  to base steps behind the editor's back. Mutators are `undefined`
-  when the editor is inactive, so read-only callers keep type-safety.
+- **Step actions.** `step.actions` fires ordered side-effects on step
+  enter: `scroll-into-view`, `click`, `focus`, `highlight`, `add-class`,
+  `remove-class`, `set-attribute`, `dispatch`, `wait`.
 
-  ```tsx
-  const editor = useEditorState();
-  if (editor?.active) {
-    editor.setArrow(stepId, { targets: ["umap-plot"], to: { space: "target", x: 50, y: 50 } });
-  }
-  ```
+- **WaitFor conditions.** `step.waitFor` blocks forward navigation until
+  a condition is met: `click`, `input` (regex), `event` (custom DOM),
+  `delay`, `visible` (element appears), `custom` (poll predicate).
 
-- **Drag-to-create arrow handle.** When a step has a registered target
-  but no arrow annotation, `<EditorHandles>` now renders a small
-  "create arrow" handle pinned to the card's right edge. Dragging it
-  into the viewport seeds the arrow with an initial `TargetPoint`; the
-  existing `<ArrowTipHandle>` takes over once the drag starts.
-  Visually distinct from the tip handle (dashed border) so authors
-  can tell creation from re-aim.
+- **Auto-scroll.** `step.scrollIntoView` scrolls the target into view.
+  Accepts `true` or `ScrollIntoViewOptions`.
 
-- **CSS tokens for handle styling.** `--eto-handle-bg`,
-  `--eto-handle-border`, `--eto-handle-size`, `--eto-handle-radius`,
-  `--eto-tip-size`. Hosts that want different handle visuals can
-  override these without wholesale class overrides.
+- **Auto-advance.** `step.autoAdvance` (ms) auto-advances after a delay.
+  Fires after `waitFor` if both are set.
 
-- **`CardVariant` type, `BrandedCardProps` type** exported for
-  consumers building on top of the branded variant.
+- **Highlight effects.** `step.highlight` renders a pulsing ring around
+  the target. Accepts `true` or `{ pulse, color, padding, borderRadius }`.
 
-### Changed
+- **Text labels with animation.** `annotations.labels` places text
+  annotations relative to the target. Supports 5 visual variants
+  (plain, callout, badge, tag, code) and frame-based text cycling with
+  configurable speed, delay, and looping.
 
-- **Default `cardAnchor` for targetless steps** is now viewport-centred
-  (`{ space: "viewport", x: 50, y: 50 }` with transform centring).
-  Steps with targets still default bottom-centre.
-- **Keyboard `Escape` close** now blurs the currently-focused element
-  first, so focus doesn't silently leak back to a tour-originated button
-  after the tour closes.
+- **Straight and curved arrows.** `arrow.style.straight: true` draws a
+  direct line. Curved arrows support bend, flip, dashed, and loop-end.
+  Draw-on animation via `stroke-dashoffset`.
 
-### Deprecated
+- **Render-prop card.** `<Card>{(args) => <MyCard />}</Card>` for full
+  visual control. Render args include `step`, `index`, `total`,
+  `isFirst`, `isLast`, `canAdvance`, `isWaiting`, `stableMinHeight`,
+  `next`, `prev`, `close`.
 
-- The internal-only `EditorInternalApi` export is kept for
-  `<EditorHandles>` but is marked `@deprecated` in JSDoc for external
-  consumers. Use `useEditorState()` which now exposes the same
-  mutators when `active`.
+- **Uniform card sizing.** Cards pre-measure all step content on mount.
+  `stableMinHeight` is the tallest card's height — apply as `minHeight`
+  for zero-jump navigation. Default card animation is `"none"` (instant
+  content swap).
 
-### Migration
+- **`<TriggerButton>`** — tutorial start button with two modes:
+  `"annoying"` (red pulse with sweep, glow, strobe, rattle animations)
+  and `"default"` (calm accent pill). Accepts `done` prop to
+  auto-switch: annoying renders as default once the user has completed
+  the tutorial. Works outside the `<Tutorial>` tree.
 
-Existing 0.3.0-alpha.0 consumers:
+- **`useTutorialDone(cookieKey)`** — cookie-based completion tracking.
+  Returns `{ done, markDone, reset }`. Persists across sessions via a
+  1-year cookie.
 
-- If you reach into the library's styles to override
-  `.eto-editor-card-handle`, revisit — the default is now solid and
-  grip-iconed, so your override may be redundant.
-- If you previously used `useEditorState()` and got back just
-  `{ active, unsavedCount, saveStatus, save, revert }`, the mutators
-  are now present when `active === true`. Purely additive; no code
-  changes needed.
-- `<Card>` without `children` still renders the no-branding default.
-  To get the new branded layout explicitly, pass `variant="branded"`.
+- **`<Tutorial theme={...}>`** — programmatic theming via CSS custom
+  properties. Properties: `accent`, `surface`, `fg`, `muted`,
+  `mutedSoft`, `border`, `borderSoft`, `hoverBg`, `arrowColor`,
+  `arrowOpacity`, `cardWidth`, `cardRadius`. Injected on `:root` via
+  `useEffect`, cleaned up on unmount.
 
-## [0.3.0-alpha.0] — 2026-04-21
+- **`<EditorPanel>`** — Figma-style sidebar for visual tutorial
+  authoring. Step list with expand/collapse, per-step CRUD (add, remove,
+  duplicate, reorder), overlay toggles (spotlight, highlight, arrow,
+  auto-scroll), arrow shape presets (straight, gentle, curved, strong)
+  with sliders for bend/stroke/head, text label editor with style
+  dropdown and animation frames, trigger button config (text, mode, icon
+  toggle), and "Reset all card positions" button.
 
-This is a **rewrite**, not a patch. The library shifts from a single
-monolithic `<TutorialOverlay>` component with many props to a headless
-provider plus composable overlay primitives. Branding, layout, and
-integration all move into host code; the library owns only state,
-coordinates, and pure rendering.
+- **Full step CRUD in Editor.** `addStep`, `removeStep`, `updateStep`,
+  `moveStep`, `resetAllCardAnchors`. All mutations are local until Save.
 
-Breaking changes throughout — see `MIGRATING.md` for a line-by-line
-guide. Alpha release on the `point-three` branch so early consumers
-can trial the API before 0.3.0 ships stable.
+- **`Editor` accepts `triggerConfig` prop** so the panel shows the host's
+  actual button text and mode as defaults.
 
-### Added
+- **`SaveHandler` receives `triggerConfig`.** Second argument
+  `options?: { triggerConfig?: TriggerConfig }` carries the editor's
+  trigger button configuration alongside the step array.
 
-- **Composable overlay primitives**: `<Tutorial>`, `<Card>`, `<Arrow>`,
-  `<Spotlight>`, `<Circles>`. Compose only the parts you want.
-- **Typed coordinate systems**: `TargetPoint` and `ViewportAnchor` are
-  now nominal types with a `space` discriminator. The compiler
-  catches every case of mixing target-relative and viewport-relative
-  points.
-- **`Step.id` is required** and is the sole navigation key. Reordering
-  steps, deep-linking, and analytics all work without index churn.
-- **`Step<Meta>` generic**. Host metadata lives under `step.meta` with
-  a shape the host declares; library fields stay closed and typo-safe.
-- **`useTutorialTarget(id)` hook**. Replaces `data-tutorial-id="…"`
-  attribute lookup. Returns a callback ref; no more DOM string
-  matching, no more cross-library collisions.
-- **Lifecycle callbacks**: `onOpen`, `onClose`, `onStepEnter`,
-  `onStepLeave`. Each receives the full step object.
-- **`canAdvance` predicate** prop blocks forward navigation until a
-  condition is met. Exposed via `status === "blocked"`.
-- **`useTutorial()` hook** returns the full navigation API
-  (`status`, `step`, `index`, `total`, `isFirst`, `isLast`,
-  `canAdvance`, `next`, `prev`, `goto`, `close`) for custom card UI.
-- **`<Editor>` + `<EditorHandles>`** — authoring mode split into a
-  props-transforming wrapper and an opt-in drag-handles component.
-  `useEditorState()` exposes read-only editor state for host-drawn
-  UI (unsaved count, save status, save/revert methods).
-- **`--eto-surface` CSS variable** — host theme background override
-  for the card.
-- **`--eto-*-z` CSS variables** for every overlay layer so hosts can
-  tune z-index interaction with their own chrome.
-- **Keyboard navigation** (Escape / Arrow keys) wired by default on
-  `<Card>`. Opt out with `<Card disableKeyboard />`.
-- **Accessibility**: `role="dialog"`, `aria-labelledby`,
+- **Animation engine.** `useFrameSequence` (state-machine frame cycling),
+  `useEnterAnimation` (CSS class on step change), `useArrowDraw` (SVG
+  draw-on). Single timer per state, no nested setTimeout, trigger counter
+  for re-triggering on same step.
+
+- **`OverlayPortal`** — synchronous portal to `document.body`. No mount
+  delay, works with SSR guard.
+
+- **`TutorialApi.steps`** — all steps exposed on the API so overlay
+  components can iterate for pre-measurement.
+
+- **Typed coordinate systems.** `TargetPoint` (% of target rect) and
+  `ViewportAnchor` (% of viewport or px in absolute mode). Constructors:
+  `targetPoint(x, y)` and `viewportAnchor(x, y)`.
+
+- **`Step<Meta>` generic.** Host metadata on `step.meta` with a shape
+  the host declares.
+
+- **Keyboard navigation.** Escape closes, Arrow keys navigate. Opt out
+  with `<Card disableKeyboard />`. Escape blurs the active element first
+  to prevent focus leaks.
+
+- **Accessibility.** `role="dialog"`, `aria-labelledby`,
   `aria-describedby`, `aria-label` on close button.
-- **Vitest test suite**: 80 test cases across state, coords,
-  geometry, provider lifecycle, and editor merging.
+
+- **Dark mode.** Add `.dark` to an ancestor — CSS variables handle the
+  rest. Full set of dark-mode token overrides built in.
+
+- **Vitest test suite.** 97 tests across state, coords, geometry,
+  provider lifecycle, editor merging, and card positioning.
 
 ### Removed
 
-- **`<TutorialOverlay>`** — replaced by `<Tutorial>` + `<Card>` +
-  `<Arrow>` etc. See `MIGRATING.md`.
-- **`data-tutorial-id`** attribute convention — use `useTutorialTarget`
-  instead.
-- **`onAction(action, index)`** string-dispatch callback — replaced by
-  `onStepEnter(step, index)` with the full step object.
-- **`isDark` prop** — use `.dark` class on an ancestor; the library
-  reads CSS variables scoped under `.dark` automatically.
+- **`<TutorialOverlay>`** — replaced by composable primitives.
+- **`<Card variant="branded">`** — removed. Use render-prop for custom
+  card styling. The library ships no branding.
+- **`CardVariant`, `BrandedCardProps`** types — removed.
+- **`data-tutorial-id`** attribute convention — use `useTutorialTarget`.
+- **`onAction(action, index)`** callback — use `onStepEnter(step, index)`.
+- **`isDark` prop** — use `.dark` ancestor class.
 - **`logoSrc` / `logoWidth` / `logoHeight` / `headerLabel` /
-  `ImageComponent` props** — use the render-prop form of `<Card>` for
-  branded headers.
-- **`debug` prop** (deprecated since 0.2.0) — removed. Use `canEdit`.
-- **`useLocalStorageCanEdit`** — removed as a library-provided hook.
-  Hosts can implement this in ~10 lines with `useSyncExternalStore`;
-  leaving it out keeps the library dependency-light.
-- **Automatic global `tutorial-highlight` class mutation** — replaced
-  by `<Spotlight>` with SVG mask cutouts (no DOM class reach-in).
-- **Index signature on `TutorialStep`** — custom fields go in
-  `step.meta` now, typed by the host.
+  `ImageComponent` props** — use render-prop card.
+- **`debug` prop** — use `canEdit`.
+- **`useLocalStorageCanEdit`** — implement in host code.
+- **`lucide-react` peer dependency** — no icon library required.
 
 ### Changed
 
-- **CSS class prefix** is `eto-*` (was `nto-*`).
-- **CSS variable prefix** is `--eto-*` (was `--nto-*`).
-- **Package name stays `next-easytour`.** Not renamed.
-- **Peer dependencies**: `lucide-react` is no longer required. The
-  editor uses CSS-styled handles; no icon library dependency.
-- **Default card layout** has no branding. Use render-prop mode for
-  logo/header customisation.
-- **Arrow origin** is the card's nearest edge to the target, not
-  always the top-centre. Cards positioned anywhere on screen now
-  route their arrows sensibly.
-- **Card fade-in animation** is opacity-only (was translateY +
-  opacity). Fixes a flicker when default-positioned cards mounted.
+- **CSS class prefix** `eto-*` (was `nto-*`).
+- **CSS variable prefix** `--eto-*` (was `--nto-*`).
+- **Default card animation** is `"none"` (instant swap, no jumping).
+- **Arrow origin** is the card's nearest edge to the target, not always
+  top-centre.
+- **Card positioning** is inline-style-driven — host CSS cannot stomp it.
+- **Spotlight cutouts** transition smoothly between steps (300ms ease).
+- **Frame transitions** are opacity-only — no transform changes, no
+  label jumping.
 
 ### Fixed
 
-- Card no longer mixes backgrounds with `transparent`; renders opaque
-  against any host surface.
-- Card positioning is inline-style-driven; host CSS can no longer
-  stomp the positioning with its own `position:` rules.
-- Arrow disappears cleanly when the card and target overlap (no
-  degenerate zero-length paths).
-- Lifecycle callbacks are wrapped in try/catch so a throwing host
-  callback doesn't brick the tour.
-- Target rect observation uses `ResizeObserver` + scroll capture;
-  catches every case the 0.2.x scroll-only listener missed.
+- Card renders opaque against any host surface (no `transparent` mixing).
+- Arrow disappears cleanly when card and target overlap.
+- Lifecycle callbacks wrapped in try/catch — throwing host code doesn't
+  brick the tour.
+- Target rect observation via `ResizeObserver` + scroll capture.
+- Editor handles visible against all backgrounds (solid fills, borders).
+- `mergeOverrides` constructs arrow annotations from nothing when an
+  arrow-tip override is applied to a step without an existing arrow.
 
-### Migration
+### Migration from 0.2.x
 
-See `MIGRATING.md` in the repo root for a step-by-step guide from
-0.2.x. The key changes for MuTopia:
-
-1. Wrap content in `<Tutorial>`, compose the primitives you want.
-2. Write a branded `<Card>` via render-prop (~30 lines) to replace
-   the `logoSrc` prop.
-3. Swap `data-tutorial-id="foo"` → `useTutorialTarget("foo")` on 10
-   callsites (SignatureNav, MuTopiaHome).
-4. Move step-specific effects into `onStepEnter` / `onStepLeave`.
-5. Rename `--nto-accent` → `--eto-accent` in globals.css.
+1. Replace `<TutorialOverlay>` with `<Tutorial>` + `<Card>` + `<Arrow>`.
+2. Write a custom `<Card>` via render-prop for branded headers.
+3. Swap `data-tutorial-id="foo"` → `useTutorialTarget("foo")`.
+4. Move step effects into `onStepEnter` / `onStepLeave`.
+5. Rename `--nto-accent` → `--eto-accent` in CSS.
 6. `step.meta.action` replaces the free-form `action: string` field.
 
 ## [0.2.3] — (not released)
 
-Skipped. The positioning and opacity fixes intended for 0.2.3 are
-folded into the 0.3.0 rewrite.
+Skipped. Fixes folded into the 0.3.0 rewrite.
 
 ## [0.2.2] — 2026-04-21
 

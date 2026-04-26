@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * next-easytour 0.3.0-alpha.3 — Next.js App Router example.
+ * next-easytour 0.3.0 — Next.js App Router example.
  *
  * Demonstrates CSS-selector targeting, step actions, waitFor,
- * auto-advance, auto-scroll, highlight, and branded card.
+ * auto-advance, auto-scroll, highlight, and the default card.
  */
 
 import { useState } from "react";
@@ -14,7 +14,9 @@ import {
   Arrow,
   Spotlight,
   Circles,
+  TriggerButton,
   useTutorialTarget,
+  useTutorialDone,
   targetPoint,
   viewportAnchor,
   type Step,
@@ -26,15 +28,14 @@ const steps: Step<DemoMeta>[] = [
   {
     id: "welcome",
     title: "Welcome to the Demo",
-    body: "This tour shows off alpha.3 features.\nIt will auto-advance in 3 seconds…",
+    body: "This tour shows off next-easytour.\nIt will auto-advance in 3 seconds…",
     autoAdvance: 3000,
-    transition: { enter: "scale" },
   },
   {
     id: "search",
     title: "Try searching",
     body: "Type something in the search box to continue.",
-    selector: "#demo-search",             // CSS selector — no hook needed
+    selector: "#demo-search",
     scrollIntoView: true,
     highlight: true,
     annotations: {
@@ -106,15 +107,20 @@ function Counter() {
 
 export default function Page() {
   const [stepId, setStepId] = useState<string | null>(null);
+  const { done, markDone } = useTutorialDone("demo-tutorial");
+
   return (
     <main style={{ maxWidth: 640, margin: "0 auto", padding: "2rem", fontFamily: "system-ui" }}>
-      <h1>next-easytour alpha.3 demo</h1>
-      <button onClick={() => setStepId("welcome")}
-        style={{ padding: "0.5rem 1rem", borderRadius: 6, background: "#4285F4", color: "#fff", border: "none", cursor: "pointer", marginBottom: "1.5rem" }}>
-        Start Tour
-      </button>
+      <h1>next-easytour demo</h1>
 
-      <div style={{ marginBottom: "1.5rem" }}>
+      <TriggerButton
+        onClick={() => setStepId("welcome")}
+        text="Start Tour"
+        mode="annoying"
+        done={done}
+      />
+
+      <div style={{ marginTop: "1.5rem", marginBottom: "1.5rem" }}>
         <label htmlFor="demo-search" style={{ fontSize: "0.875rem", fontWeight: 500 }}>Search</label>
         <input id="demo-search" type="text" placeholder="Type something…"
           style={{ display: "block", width: "100%", padding: "0.5rem", marginTop: "0.25rem", borderRadius: 6, border: "1px solid #ccc" }} />
@@ -137,12 +143,13 @@ export default function Page() {
 
       <Tutorial<DemoMeta>
         steps={steps} stepId={stepId} onStepChange={setStepId}
-        onStepEnter={(s) => console.log(`[tour] enter: ${s.id}`)}
-        onWaitComplete={(s) => console.log(`[tour] wait done: ${s.id}`)}
+        onStepEnter={(s) => {
+          if (s.id === "done") markDone();
+        }}
       >
         <Spotlight />
         <Arrow />
-        <Card variant="branded" logo="/next.svg" logoAlt="Next.js" />
+        <Card />
       </Tutorial>
 
       <style>{`.demo-ring { outline: 2px solid #4285F4; outline-offset: 4px; border-radius: 8px; }`}</style>
