@@ -165,7 +165,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   }, [disableKeyboard, step, next, prev, close]);
 
   // ── Resolve entrance animation class ──────────────────────────────────
-  const enterAnimType = step?.transition?.enter ?? transitionProp?.enter ?? "fade";
+  const enterAnimType = step?.transition?.enter ?? transitionProp?.enter ?? "none";
   const animClass = useEnterAnimation(
     step?.id ?? null,
     enterAnimType === "none" ? "" : `eto-card--${enterAnimType}`,
