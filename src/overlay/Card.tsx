@@ -18,6 +18,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { useTutorial } from "../core/Tutorial";
 import { OverlayPortal } from "../core/OverlayPortal";
@@ -80,6 +81,12 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   const lastRectRef = useRef<Rect | null>(null);
   const rafRef = useRef<number>(0);
 
+  // ── Stable card sizing ────────────────────────────────────────────────
+  // Track the maximum height the card reaches across all steps.
+  // Apply as minHeight so the card never shrinks → no visual jump.
+  const maxHeightRef = useRef<number>(0);
+  const [stableMinHeight, setStableMinHeight] = useState<number>(0);
+
   useLayoutEffect(() => {
     if (!cardRef.current) return;
     if (!setCardRect) return;
@@ -88,6 +95,13 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
     const read = () => {
       const r = el.getBoundingClientRect();
       const next: Rect = { left: r.left, top: r.top, width: r.width, height: r.height };
+
+      // Grow-only: update stable height when content is taller
+      if (r.height > maxHeightRef.current + 0.5) {
+        maxHeightRef.current = r.height;
+        setStableMinHeight(r.height);
+      }
+
       const prev = lastRectRef.current;
       if (
         prev &&
@@ -144,7 +158,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   }, [disableKeyboard, step, next, prev, close]);
 
   // ── Resolve entrance animation class ──────────────────────────────────
-  const enterAnimType = step?.transition?.enter ?? transitionProp?.enter ?? "fade-slide";
+  const enterAnimType = step?.transition?.enter ?? transitionProp?.enter ?? "fade";
   const animClass = useEnterAnimation(
     step?.id ?? null,
     enterAnimType === "none" ? "" : `eto-card--${enterAnimType}`,
@@ -201,7 +215,10 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
     animClass,
   ].filter(Boolean).join(" ");
 
-  const styleObj: React.CSSProperties = { ...positionStyle };
+  const styleObj: React.CSSProperties = {
+    ...positionStyle,
+    ...(stableMinHeight > 0 ? { minHeight: stableMinHeight } : {}),
+  };
 
   return (
     <OverlayPortal>
