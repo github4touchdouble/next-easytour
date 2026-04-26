@@ -3,27 +3,18 @@
 /**
  * @module overlay/TriggerButton
  *
- * Alpha.20: configurable tutorial trigger button.
+ * Tutorial trigger button with completion-aware mode switching.
  *
- * Modes:
- *   - "attention" — animated gradient pulse, impossible to miss
- *   - "subtle"    — calm accent-tinted button
- *   - "minimal"   — icon-only circle
+ * Pass `done` (from `useTutorialDone`) and the button auto-switches:
+ *   - `done=false` → "attention" mode (red pulse, strobe, rattle)
+ *   - `done=true`  → "subtle" mode (calm accent pill)
  *
- * Hides automatically when the tutorial is active (stepId !== null).
- * The host places it anywhere in their layout and provides `onClick`.
+ * Or set `mode` explicitly to override.
  *
- * ```tsx
- * <TriggerButton
- *   text="Take the tour"
- *   mode="attention"
- *   onClick={() => setStepId(steps[0].id)}
- * />
- * ```
+ * Hides automatically when the tutorial is active.
  */
 
 import * as React from "react";
-import { useTutorial } from "../core/Tutorial";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -34,15 +25,21 @@ export interface TriggerButtonProps {
   onClick: () => void;
   /** Button text. Default "Start tutorial". Ignored in "minimal" mode. */
   text?: string;
-  /** Visual mode. Default "subtle". */
+  /**
+   * Visual mode. When omitted, auto-selects based on `done`:
+   *   - `done=false` → "attention"
+   *   - `done=true`  → "subtle"
+   */
   mode?: TriggerMode;
+  /** Whether the tutorial has been completed. Drives auto mode selection. */
+  done?: boolean;
   /** Show the help-circle icon. Default true. */
   icon?: boolean;
-  /** Override the automatic hide-when-active behaviour. */
+  /** Control visibility. Default true. The host gates rendering. */
   visible?: boolean;
-  /** Additional CSS class on the wrapper. */
+  /** Additional CSS class on the button. */
   className?: string;
-  /** Additional inline styles on the wrapper. */
+  /** Additional inline styles on the button. */
   style?: React.CSSProperties;
 }
 
@@ -65,19 +62,18 @@ export function TriggerButton(props: TriggerButtonProps) {
   const {
     onClick,
     text = "Start tutorial",
-    mode = "subtle",
+    mode: modeProp,
+    done = false,
     icon = true,
-    visible: visibleProp,
+    visible = true,
     className,
     style,
   } = props;
 
-  const { step } = useTutorial();
-  const isActive = step !== null;
-
-  // Auto-hide when tutorial is running (unless overridden)
-  const visible = visibleProp ?? !isActive;
   if (!visible) return null;
+
+  // Auto mode: attention when not done, subtle when done
+  const mode = modeProp ?? (done ? "subtle" : "attention");
 
   const cls = [
     "eto-trigger",

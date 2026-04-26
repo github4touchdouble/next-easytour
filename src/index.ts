@@ -4,6 +4,8 @@
 export { Tutorial, useTutorial } from "./core/Tutorial";
 export { useTutorialTarget } from "./core/useTutorialTarget";
 export { OverlayPortal } from "./core/OverlayPortal";
+export { useTutorialDone } from "./core/useTutorialDone";
+export type { TutorialDoneState } from "./core/useTutorialDone";
 export { useFrameSequence, useEnterAnimation, useArrowDraw } from "./core/animation";
 
 // Overlay
