@@ -13,7 +13,8 @@
  * actions are cancelled via an AbortController.
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
+import { invokeFeature, useFeatureRegistry, type FeatureRegistry } from "./features";
 import type { Step, StepAction } from "../types";
 
 /**
@@ -36,6 +37,7 @@ async function executeAction(
   action: StepAction,
   step: Step<never>,
   getElement: (id?: string) => Element | null,
+  registry: FeatureRegistry | null,
   cleanups: (() => void)[],
   signal: AbortSignal,
 ): Promise<void> {
@@ -133,6 +135,14 @@ async function executeAction(
       });
       break;
     }
+    case "feature": {
+      // The host's own behaviour, reached by name. A feature may hand
+      // back a cleanup — for one that opens something that should close
+      // again when the step is left.
+      const undo = await invokeFeature(registry, action.name, action.args ?? []);
+      if (typeof undo === "function") cleanups.push(undo);
+      break;
+    }
   }
 }
 
@@ -146,6 +156,10 @@ export function useStepActions(
 ): void {
   const getElementRef = useRef(getElement);
   getElementRef.current = getElement;
+
+  const registry = useFeatureRegistry();
+  const registryRef = useRef(registry);
+  registryRef.current = registry;
 
   useEffect(() => {
     if (!step || !step.actions || step.actions.length === 0) return;
@@ -161,6 +175,7 @@ export function useStepActions(
             action,
             step as Step<never>,
             getElementRef.current,
+            registryRef.current,
             cleanups,
             ac.signal,
           );

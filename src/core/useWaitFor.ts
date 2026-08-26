@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useState, useRef } from "react";
+import { readFeature, useFeatureRegistry } from "./features";
 import type { Step, WaitCondition } from "../types";
 
 export function useWaitFor(
@@ -26,6 +27,8 @@ export function useWaitFor(
   const [satisfied, setSatisfied] = useState(false);
   const getElementRef = useRef(getElement);
   getElementRef.current = getElement;
+
+  const registry = useFeatureRegistry();
 
   // Reset on step change
   useEffect(() => {
@@ -100,6 +103,25 @@ export function useWaitFor(
         }
         break;
       }
+      case "feature": {
+        // Polled rather than subscribed: a feature exposes a plain
+        // `read()`, so there is nothing to subscribe to. The serialisable
+        // sibling of "custom" — the editor can author this one.
+        const pollMs = cond.pollMs ?? 200;
+        const met = () => {
+          const value = readFeature(registry, cond.name);
+          return "equals" in cond ? Object.is(value, cond.equals) : Boolean(value);
+        };
+        if (met()) {
+          setSatisfied(true);
+        } else {
+          const interval = setInterval(() => {
+            if (met()) { setSatisfied(true); clearInterval(interval); }
+          }, pollMs);
+          cleanup = () => clearInterval(interval);
+        }
+        break;
+      }
       case "custom": {
         const pollMs = cond.pollMs ?? 200;
         if (cond.predicate()) {
@@ -117,7 +139,7 @@ export function useWaitFor(
     }
 
     return () => { cleanup?.(); };
-  }, [step?.id, step?.waitFor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step?.id, step?.waitFor, registry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return !step?.waitFor ? true : satisfied;
 }

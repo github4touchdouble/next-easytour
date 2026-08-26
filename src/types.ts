@@ -102,6 +102,89 @@ export interface Annotations {
   labels?: TextLabel[];
 }
 
+// ── Features: the host's own behaviour, addressable by name ─────────────
+
+/**
+ * A parameter of a feature, described well enough for the editor to draw
+ * a form for it.
+ *
+ * This is what makes a feature *authorable* rather than merely callable:
+ * without it, adding a feature to a step means hand-writing JSON and
+ * knowing the argument order.
+ */
+export interface FeatureParam {
+  name: string;
+  type: "string" | "number" | "boolean" | "enum" | "string[]" | "json";
+  label?: string;
+  description?: string;
+  /** Allowed values when `type` is "enum". */
+  options?: string[];
+  /** Value used when the author leaves the field empty. */
+  defaultValue?: unknown;
+  required?: boolean;
+}
+
+/**
+ * A named capability of the host application.
+ *
+ * A tour can point at things and click them, but the interesting parts of
+ * an app are usually state, not DOM: which rows are selected, which mode
+ * a chart is in, whether a panel is expanded. Reaching those by
+ * synthesising clicks is brittle and, for a canvas or a virtualised list,
+ * often impossible.
+ *
+ * A feature is the host handing the tour a labelled handle on one of
+ * those behaviours. Steps then invoke it by name, which keeps them
+ * declarative and serialisable — the editor can author them, and they
+ * survive a round trip through JSON.
+ */
+export interface TutorialFeature<Args extends unknown[] = any[]> {
+  /** Stable identifier used by steps, e.g. `"chart.setMode"`. */
+  name: string;
+  /** Human label for the editor's feature list. Defaults to `name`. */
+  label?: string;
+  /** What it does, shown to whoever is authoring the tour. */
+  description?: string;
+  /** Parameters, in call order. Drives the editor's form. */
+  params?: FeatureParam[];
+  /**
+   * Perform the behaviour. May return a cleanup function, which runs when
+   * the step is left — for a feature that opens something that should
+   * close again.
+   */
+  run?: (...args: Args) => void | (() => void) | Promise<void | (() => void)>;
+  /**
+   * Current value, for `waitFor` and `canAdvance`. Lets a step block until
+   * the user has actually done the thing it asked for.
+   */
+  read?: () => unknown;
+  /**
+   * Capture the state this feature affects, before the tour touches it.
+   * Taken once when the tour opens.
+   */
+  snapshot?: () => unknown;
+  /**
+   * Put back what `snapshot` captured. Called when the tour closes, so a
+   * user is returned to the app they left rather than to whatever state
+   * the last step happened to set up.
+   */
+  restore?: (snapshot: unknown) => void;
+}
+
+/** A feature as seen from outside — no callables, safe to render. */
+export interface FeatureDescriptor {
+  name: string;
+  label: string;
+  description?: string;
+  params: FeatureParam[];
+  /** Whether this feature can be invoked by a step action. */
+  runnable: boolean;
+  /** Whether this feature can be waited on. */
+  readable: boolean;
+  /** Whether the tour restores this feature's state on close. */
+  restorable: boolean;
+}
+
 // ── Step actions (NEW) ──────────────────────────────────────────────────
 
 export type StepAction =
@@ -113,7 +196,13 @@ export type StepAction =
   | { type: "remove-class"; selector?: string; className: string }
   | { type: "set-attribute"; selector?: string; name: string; value: string }
   | { type: "dispatch"; event: string; detail?: unknown; selector?: string }
-  | { type: "wait"; ms: number };
+  | { type: "wait"; ms: number }
+  /**
+   * Invoke a host feature registered with `useTutorialFeature`. Args are
+   * passed to `run` in order, and must be JSON values so the step stays
+   * serialisable.
+   */
+  | { type: "feature"; name: string; args?: unknown[] };
 
 // ── WaitFor conditions (NEW) ────────────────────────────────────────────
 
@@ -123,7 +212,13 @@ export type WaitCondition =
   | { type: "event"; name: string; selector?: string }
   | { type: "delay"; ms: number }
   | { type: "visible"; selector: string }
-  | { type: "custom"; predicate: () => boolean; pollMs?: number };
+  | { type: "custom"; predicate: () => boolean; pollMs?: number }
+  /**
+   * Block until a host feature's `read()` satisfies the condition:
+   * `equals` for an exact match, otherwise simply truthy. Unlike
+   * `custom`, this is serialisable, so the editor can author it.
+   */
+  | { type: "feature"; name: string; equals?: unknown; pollMs?: number };
 
 // ── Highlight effect (NEW) ──────────────────────────────────────────────
 
@@ -297,7 +392,11 @@ export interface EditorState {
  * ```
  */
 export interface TutorialTheme {
-  /** Primary brand colour. Used for buttons, pills, active states. Default "#4285F4". */
+  /** Start from a named look; your own tokens below are applied on top. */
+  preset?: "default" | "minimal" | "soft" | "glass" | "contrast";
+
+  // ── Colour ────────────────────────────────────────────────────────────
+  /** Primary brand colour. Buttons, pills, active states. Default "#4285F4". */
   accent?: string;
   /** Card / panel background. Default "#ffffff". */
   surface?: string;
@@ -317,10 +416,95 @@ export interface TutorialTheme {
   arrowColor?: string;
   /** Arrow stroke opacity. Default "0.35". */
   arrowOpacity?: string;
+
+  // ── Typography ────────────────────────────────────────────────────────
+  /** Font stack for every tour surface. Default: system UI stack. */
+  fontFamily?: string;
+  /** Base body size. Default "0.8125rem". */
+  fontSize?: string;
+  /** Step title size. Default "0.9375rem". */
+  titleSize?: string;
+  /** Step title weight. Default "600". */
+  titleWeight?: string;
+  /** Body line height. Default "1.5". */
+  lineHeight?: string;
+
+  // ── Card ──────────────────────────────────────────────────────────────
   /** Card width. Default "min(480px, calc(100vw - 2rem))". */
   cardWidth?: string;
-  /** Card border radius. Default "0.5rem". */
+  /** Card corner radius. Default "0.5rem". */
   cardRadius?: string;
+  /** Padding inside the card's sections. Default "0.875rem". */
+  cardPadding?: string;
+  /** Card background — any CSS `background` value, gradients included. */
+  cardBackground?: string;
+  /** Card shadow. Default: an accent-tinted glow. */
+  cardShadow?: string;
+  /** `backdrop-filter` on the card, for translucent looks. Default none. */
+  cardBackdropFilter?: string;
+  /** Border width on the card and other surfaces. Default "1px". */
+  borderWidth?: string;
+
+  // ── Buttons ───────────────────────────────────────────────────────────
+  /** Button corner radius. Default "0.375rem". */
+  buttonRadius?: string;
+  /** Button padding. Default "0.375rem 0.75rem". */
+  buttonPadding?: string;
+  /** Button text size. Default "0.75rem". */
+  buttonFontSize?: string;
+  /** Primary button background. Defaults to the accent. */
+  primaryButtonBg?: string;
+  /** Primary button text colour. Default "#ffffff". */
+  primaryButtonFg?: string;
+
+  // ── Overlays ──────────────────────────────────────────────────────────
+  /** Spotlight dimmer colour. Default "rgba(0,0,0,0.55)". */
+  spotlightColor?: string;
+  /** Gap between target and spotlight cutout, in px. Default "8". */
+  spotlightPadding?: string;
+  /** Spotlight cutout corner radius, in px. Default "8". */
+  spotlightRadius?: string;
+  /** Highlight ring colour. Defaults to the accent. */
+  highlightColor?: string;
+  /** Editor seam colour. Default "#eab308". */
+  seamColor?: string;
+}
+
+/**
+ * Classes applied to individual parts of the built-in card and trigger.
+ *
+ * For a design system that owns its own styling. The library's own class
+ * is always kept and yours is appended, so this adds to the default look
+ * rather than replacing it — reach for the render-prop when you want to
+ * replace it.
+ */
+export interface TutorialClassNames {
+  /** The card's outer element. */
+  card?: string;
+  /** Header row holding the progress counter and close button. */
+  header?: string;
+  /** "3 / 7" progress counter. */
+  progress?: string;
+  /** Close button in the header. */
+  closeButton?: string;
+  /** Wrapper around title and copy. */
+  body?: string;
+  /** Step title. */
+  title?: string;
+  /** Step body copy. */
+  copy?: string;
+  /** Footer row holding the navigation buttons. */
+  footer?: string;
+  /** Back button. */
+  prevButton?: string;
+  /** Next / Done button. */
+  nextButton?: string;
+  /** The `<TourTrigger>` button. */
+  trigger?: string;
+  /** The spotlight overlay. */
+  spotlight?: string;
+  /** The tooltip surface. */
+  tooltip?: string;
 }
 
 /** Configuration for the tutorial trigger button. */

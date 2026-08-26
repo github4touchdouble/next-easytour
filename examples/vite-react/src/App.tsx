@@ -1,18 +1,16 @@
 /**
- * next-easytour 0.3.0 — Vite + React example.
+ * next-easytour 0.4.0 — Vite + React example.
  *
- * Minimal demo: CSS-selector targeting, auto-scroll, waitFor,
- * highlight, and the default card.
+ * Minimal demo: one config object, CSS-selector targeting, auto-scroll,
+ * waitFor, highlight, and the default card.
  */
 
 import { useState } from "react";
 import {
-  Tutorial,
-  Card,
-  Arrow,
-  Spotlight,
-  TriggerButton,
-  useTutorialDone,
+  defineTutorial,
+  TourTrigger,
+  TutorialProvider,
+  TutorialStage,
   targetPoint,
   type Step,
 } from "next-easytour";
@@ -40,56 +38,41 @@ const steps: Step[] = [
     waitFor: { type: "input", pattern: "\\S+" },
   },
   {
-    id: "btn",
-    title: "Click to finish",
-    body: "Click the submit button.",
-    selector: "#submit-btn",
-    highlight: { pulse: true, color: "#22c55e" },
-    annotations: {
-      spotlight: true,
-      arrow: { to: targetPoint(50, 50), style: { dashed: true } },
-    },
-    waitFor: { type: "click" },
-  },
-  {
-    id: "done",
-    title: "All done!",
-    body: "That's the basics of next-easytour.",
+    id: "outro",
+    title: "That's it!",
+    body: "Three steps, no wiring.",
   },
 ];
 
+const tour = defineTutorial({
+  id: "vite-demo",
+  steps,
+  trigger: { text: "Start Tour", mode: "annoying" },
+});
+
 export default function App() {
-  const [stepId, setStepId] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const { done, markDone } = useTutorialDone("vite-demo-tutorial");
 
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: "2rem", fontFamily: "system-ui" }}>
-      <h1>Vite + next-easytour</h1>
+    <TutorialProvider config={tour}>
+      <main style={{ maxWidth: 560, margin: "0 auto", padding: "2rem", fontFamily: "system-ui" }}>
+        <h1>next-easytour — Vite demo</h1>
 
-      <TriggerButton
-        onClick={() => setStepId("intro")}
-        text="Start Tour"
-        mode="annoying"
-        done={done}
-      />
+        <TourTrigger />
 
-      <div style={{ marginTop: "1rem", marginBottom: "1rem" }}>
-        <input id="name-input" value={name} onChange={e => setName(e.target.value)}
-          placeholder="Your name" style={{ padding: "0.5rem", borderRadius: 6, border: "1px solid #ccc", width: "100%" }} />
-      </div>
+        <div style={{ marginTop: "1.5rem" }}>
+          <label htmlFor="name-input" style={{ fontSize: "0.875rem", fontWeight: 500 }}>Your name</label>
+          <input
+            id="name-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Type here…"
+            style={{ display: "block", width: "100%", padding: "0.5rem", marginTop: "0.25rem", borderRadius: 6, border: "1px solid #ccc" }}
+          />
+        </div>
 
-      <button id="submit-btn"
-        style={{ padding: "0.5rem 1rem", borderRadius: 6, border: "1px solid #ccc", cursor: "pointer" }}>
-        Submit
-      </button>
-
-      <Tutorial steps={steps} stepId={stepId} onStepChange={setStepId}
-        onStepEnter={(s) => { if (s.id === "done") markDone(); }}>
-        <Spotlight />
-        <Arrow />
-        <Card />
-      </Tutorial>
-    </div>
+        <TutorialStage />
+      </main>
+    </TutorialProvider>
   );
 }

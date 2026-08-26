@@ -1,15 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://unpkg.com/next-easytour/tutorial.schema.json",
-  "title": "next-easytour tutorial (0.3.x)",
-  "description": "JSON schema for a next-easytour step list. Validates arrays of Step objects as defined in src/types.ts.",
-  "type": "array",
-  "items": { "$ref": "#/definitions/Step" },
-
+  "title": "next-easytour tutorial (0.4.x)",
+  "description": "JSON schema for a next-easytour tutorial file. Accepts either a bare array of Step objects (the 0.2/0.3 on-disk format) or the 0.4 { steps, trigger, version } envelope written by createTutorialFileRoute. Both are accepted on load; normalizeTutorial() converts between them.",
   "definitions": {
     "Step": {
       "type": "object",
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -26,105 +25,790 @@
         },
         "targets": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Registered target ids this step highlights or points at. Matches the arg passed to useTutorialTarget()."
         },
-        "annotations": { "$ref": "#/definitions/Annotations" },
-        "cardAnchor": { "$ref": "#/definitions/ViewportAnchor" },
+        "annotations": {
+          "$ref": "#/definitions/Annotations"
+        },
+        "cardAnchor": {
+          "$ref": "#/definitions/ViewportAnchor"
+        },
         "meta": {
           "type": "object",
           "description": "Host-owned metadata. Shape is declared by the consumer; the library preserves it verbatim."
+        },
+        "content": {
+          "type": "string",
+          "description": "Not representable in JSON \u2014 `step.content` is JSX and only exists for steps defined in code. Present here so a serialised step carrying it does not fail validation."
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector resolved at step-enter time. An alternative to `targets` that needs no change to the target's source."
+        },
+        "scrollIntoView": {
+          "description": "true, or ScrollIntoViewOptions.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "behavior": {
+                  "enum": [
+                    "auto",
+                    "instant",
+                    "smooth"
+                  ]
+                },
+                "block": {
+                  "enum": [
+                    "start",
+                    "center",
+                    "end",
+                    "nearest"
+                  ]
+                },
+                "inline": {
+                  "enum": [
+                    "start",
+                    "center",
+                    "end",
+                    "nearest"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/StepAction"
+          },
+          "description": "Ordered side-effects fired on step enter."
+        },
+        "waitFor": {
+          "$ref": "#/definitions/WaitCondition"
+        },
+        "autoAdvance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Advance automatically after N ms. Fires after waitFor if both are set."
+        },
+        "highlight": {
+          "description": "true for the default pulse, or a HighlightEffect.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/HighlightEffect"
+            }
+          ]
+        },
+        "transition": {
+          "$ref": "#/definitions/TransitionConfig"
         }
       },
       "additionalProperties": false
     },
-
     "TargetPoint": {
       "type": "object",
-      "required": ["space", "x", "y"],
+      "required": [
+        "space",
+        "x",
+        "y"
+      ],
       "properties": {
-        "space": { "const": "target" },
+        "space": {
+          "const": "target"
+        },
         "x": {
           "type": "number",
-          "description": "Horizontal position as a percentage of the target's width. May fall outside 0–100."
+          "description": "Horizontal position as a percentage of the target's width. May fall outside 0\u2013100."
         },
         "y": {
           "type": "number",
-          "description": "Vertical position as a percentage of the target's height. May fall outside 0–100."
+          "description": "Vertical position as a percentage of the target's height. May fall outside 0\u2013100."
         }
       },
       "additionalProperties": false
     },
-
     "ViewportAnchor": {
       "type": "object",
-      "required": ["space", "x", "y"],
+      "required": [
+        "space",
+        "x",
+        "y"
+      ],
       "properties": {
-        "space": { "const": "viewport" },
+        "space": {
+          "const": "viewport"
+        },
         "x": {
           "type": "number",
-          "description": "Horizontal position as a percentage of the viewport width. May fall outside 0–100."
+          "description": "Horizontal position as a percentage of the viewport width. May fall outside 0\u2013100."
         },
         "y": {
           "type": "number",
-          "description": "Vertical position as a percentage of the viewport height. May fall outside 0–100."
+          "description": "Vertical position as a percentage of the viewport height. May fall outside 0\u2013100."
         }
       },
       "additionalProperties": false
     },
-
     "Annotations": {
       "type": "object",
       "properties": {
-        "arrow": { "$ref": "#/definitions/Arrow" },
+        "arrow": {
+          "$ref": "#/definitions/Arrow"
+        },
         "circles": {
           "type": "array",
-          "items": { "$ref": "#/definitions/Circle" }
+          "items": {
+            "$ref": "#/definitions/Circle"
+          }
         },
         "spotlight": {
           "type": "boolean",
           "description": "Dim the viewport except for cutouts around the step's targets."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TextLabel"
+          },
+          "description": "Text annotations placed relative to the target."
         }
       },
       "additionalProperties": false
     },
-
     "Arrow": {
       "type": "object",
-      "required": ["to"],
+      "required": [
+        "to"
+      ],
       "properties": {
-        "to": { "$ref": "#/definitions/TargetPoint" },
-        "label": { "type": "string" },
-        "style": { "$ref": "#/definitions/ArrowStyle" }
+        "to": {
+          "$ref": "#/definitions/TargetPoint"
+        },
+        "label": {
+          "type": "string"
+        },
+        "style": {
+          "$ref": "#/definitions/ArrowStyle"
+        }
       },
       "additionalProperties": false
     },
-
     "ArrowStyle": {
       "type": "object",
       "properties": {
-        "bend": { "type": "number", "minimum": 5, "maximum": 80, "default": 30 },
-        "flip": { "type": "boolean", "default": false },
-        "strokeWidth": { "type": "number", "default": 1.5 },
-        "dashed": { "type": "boolean", "default": false },
-        "headSize": { "type": "number", "default": 8 },
-        "loopEnd": { "type": "boolean", "default": false }
+        "bend": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 80,
+          "default": 30
+        },
+        "flip": {
+          "type": "boolean",
+          "default": false
+        },
+        "strokeWidth": {
+          "type": "number",
+          "default": 1.5
+        },
+        "dashed": {
+          "type": "boolean",
+          "default": false
+        },
+        "headSize": {
+          "type": "number",
+          "default": 8
+        },
+        "loopEnd": {
+          "type": "boolean",
+          "default": false
+        },
+        "animated": {
+          "type": "boolean",
+          "default": true,
+          "description": "Animate the arrow drawing on step enter."
+        },
+        "straight": {
+          "type": "boolean",
+          "default": false,
+          "description": "Draw a straight line instead of a Bezier curve."
+        }
       },
       "additionalProperties": false
     },
-
     "Circle": {
       "type": "object",
-      "required": ["x", "y", "r"],
+      "required": [
+        "x",
+        "y",
+        "r"
+      ],
       "properties": {
-        "x": { "type": "number", "description": "Centre x, percentage of target width." },
-        "y": { "type": "number", "description": "Centre y, percentage of target height." },
-        "r": { "type": "number", "description": "Horizontal radius, percentage of target width." },
-        "ry": { "type": "number", "description": "Vertical radius, percentage of target height. Defaults to r (circle)." },
-        "rot": { "type": "number", "description": "Rotation in degrees." },
-        "label": { "type": "string", "description": "Optional label rendered below the ellipse." }
+        "x": {
+          "type": "number",
+          "description": "Centre x, percentage of target width."
+        },
+        "y": {
+          "type": "number",
+          "description": "Centre y, percentage of target height."
+        },
+        "r": {
+          "type": "number",
+          "description": "Horizontal radius, percentage of target width."
+        },
+        "ry": {
+          "type": "number",
+          "description": "Vertical radius, percentage of target height. Defaults to r (circle)."
+        },
+        "rot": {
+          "type": "number",
+          "description": "Rotation in degrees."
+        },
+        "label": {
+          "type": "string",
+          "description": "Optional label rendered below the ellipse."
+        }
+      },
+      "additionalProperties": false
+    },
+    "Tutorial": {
+      "type": "object",
+      "required": [
+        "steps"
+      ],
+      "description": "The 0.4 envelope. `trigger` travels with the steps so the editor can round-trip the start button's configuration.",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Step"
+          }
+        },
+        "trigger": {
+          "$ref": "#/definitions/TriggerConfig"
+        },
+        "version": {
+          "type": "integer",
+          "default": 1,
+          "description": "Payload format version. Files written by this library carry 1."
+        }
+      },
+      "additionalProperties": false
+    },
+    "TriggerConfig": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "default": "Start tutorial"
+        },
+        "mode": {
+          "enum": [
+            "annoying",
+            "default"
+          ],
+          "default": "default",
+          "description": "\"annoying\" pulses until the user completes the tour, then renders calm."
+        },
+        "icon": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "HighlightEffect": {
+      "type": "object",
+      "properties": {
+        "pulse": {
+          "type": "boolean"
+        },
+        "color": {
+          "type": "string"
+        },
+        "padding": {
+          "type": "number"
+        },
+        "borderRadius": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TransitionConfig": {
+      "type": "object",
+      "properties": {
+        "enter": {
+          "enum": [
+            "fade",
+            "fade-slide",
+            "scale",
+            "none"
+          ]
+        },
+        "exit": {
+          "enum": [
+            "fade",
+            "scale",
+            "none"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "StepAction": {
+      "description": "A side-effect fired on step enter, discriminated by `type`.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "scroll-into-view"
+            },
+            "behavior": {
+              "enum": [
+                "auto",
+                "instant",
+                "smooth"
+              ]
+            },
+            "block": {
+              "enum": [
+                "start",
+                "center",
+                "end",
+                "nearest"
+              ]
+            },
+            "inline": {
+              "enum": [
+                "start",
+                "center",
+                "end",
+                "nearest"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "click"
+            },
+            "selector": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "focus"
+            },
+            "selector": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "highlight"
+            },
+            "pulse": {
+              "type": "boolean"
+            },
+            "className": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "number"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "className"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "add-class"
+            },
+            "selector": {
+              "type": "string"
+            },
+            "className": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "className"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "remove-class"
+            },
+            "selector": {
+              "type": "string"
+            },
+            "className": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "name",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "set-attribute"
+            },
+            "selector": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "event"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "dispatch"
+            },
+            "event": {
+              "type": "string"
+            },
+            "detail": {},
+            "selector": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "ms"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "wait"
+            },
+            "ms": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "name"
+          ],
+          "additionalProperties": false,
+          "description": "Invoke a host feature registered with useTutorialFeature. Args are passed to its `run` in order and must be JSON values.",
+          "properties": {
+            "type": {
+              "const": "feature"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "args": {
+              "type": "array"
+            }
+          }
+        }
+      ]
+    },
+    "WaitCondition": {
+      "description": "Blocks forward navigation until met. `custom` takes a predicate function and therefore cannot appear in JSON.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "click"
+            },
+            "selector": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "input"
+            },
+            "selector": {
+              "type": "string"
+            },
+            "pattern": {
+              "type": "string",
+              "format": "regex"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "event"
+            },
+            "name": {
+              "type": "string"
+            },
+            "selector": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "ms"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "delay"
+            },
+            "ms": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "selector"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "visible"
+            },
+            "selector": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "name"
+          ],
+          "additionalProperties": false,
+          "description": "Block until a host feature's read() matches `equals`, or is truthy when `equals` is omitted.",
+          "properties": {
+            "type": {
+              "const": "feature"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "equals": {},
+            "pollMs": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "TextLabel": {
+      "type": "object",
+      "required": [
+        "text",
+        "position"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/TargetPoint"
+        },
+        "variant": {
+          "enum": [
+            "plain",
+            "callout",
+            "badge",
+            "tag",
+            "code"
+          ],
+          "default": "callout"
+        },
+        "color": {
+          "type": "string"
+        },
+        "fontSize": {
+          "type": "number",
+          "default": 12
+        },
+        "maxWidth": {
+          "type": "number",
+          "default": 200
+        },
+        "animation": {
+          "$ref": "#/definitions/TextLabelAnimation"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TextLabelAnimation": {
+      "type": "object",
+      "required": [
+        "frames"
+      ],
+      "properties": {
+        "frames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/TextLabelFrame"
+          }
+        },
+        "frameDuration": {
+          "type": "number",
+          "default": 2000
+        },
+        "transition": {
+          "enum": [
+            "fade",
+            "slide-up",
+            "none"
+          ],
+          "default": "fade"
+        },
+        "loop": {
+          "type": "boolean",
+          "default": false
+        },
+        "delay": {
+          "type": "number",
+          "default": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "TextLabelFrame": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "variant": {
+          "enum": [
+            "plain",
+            "callout",
+            "badge",
+            "tag",
+            "code"
+          ]
+        },
+        "color": {
+          "type": "string"
+        },
+        "fontSize": {
+          "type": "number"
+        }
       },
       "additionalProperties": false
     }
-  }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/definitions/Tutorial"
+    },
+    {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Step"
+      },
+      "description": "Legacy bare step list (0.2/0.3)."
+    }
+  ]
 }

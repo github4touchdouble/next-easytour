@@ -40,30 +40,36 @@ function HelpIcon({ size = 14 }: { size?: number }) {
   );
 }
 
-export function TriggerButton(props: TriggerButtonProps) {
-  const {
-    onClick,
-    text = "Start tutorial",
-    mode = "default",
-    done = false,
-    icon = true,
-    className,
-    style,
-  } = props;
+/**
+ * Forwards its ref to the underlying `<button>` so the editor seam can
+ * measure the tour's entry point without wrapping it in extra DOM.
+ */
+export const TriggerButton = React.forwardRef<HTMLButtonElement, TriggerButtonProps>(
+  function TriggerButton(props, ref) {
+    const {
+      onClick,
+      text = "Start tutorial",
+      mode = "default",
+      done = false,
+      icon = true,
+      className,
+      style,
+    } = props;
 
-  // "annoying" downgrades to "default" once the user has completed the tutorial
-  const visualMode = (mode === "annoying" && !done) ? "annoying" : "default";
+    // "annoying" downgrades to "default" once the user has completed the tutorial
+    const visualMode = (mode === "annoying" && !done) ? "annoying" : "default";
 
-  const cls = [
-    "eto-trigger",
-    `eto-trigger--${visualMode}`,
-    className,
-  ].filter(Boolean).join(" ");
+    const cls = [
+      "eto-trigger",
+      `eto-trigger--${visualMode}`,
+      className,
+    ].filter(Boolean).join(" ");
 
-  return (
-    <button type="button" className={cls} style={style} onClick={onClick}>
-      {icon && <HelpIcon />}
-      <span className="eto-trigger-text">{text}</span>
-    </button>
-  );
-}
+    return (
+      <button ref={ref} type="button" className={cls} style={style} onClick={onClick}>
+        {icon && <HelpIcon />}
+        <span className="eto-trigger-text">{text}</span>
+      </button>
+    );
+  },
+);

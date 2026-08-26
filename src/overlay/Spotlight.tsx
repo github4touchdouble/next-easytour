@@ -26,12 +26,33 @@ export interface SpotlightProps {
   animate?: boolean;
 }
 
+/**
+ * Read a numeric theme token, falling back when it is unset or unparsable.
+ *
+ * The spotlight is SVG, so its geometry cannot come from CSS the way the
+ * card's does — the values have to be resolved to numbers here for the
+ * same theme tokens to reach it.
+ */
+function cssNumber(name: string, fallback: number): number {
+  if (typeof window === "undefined") return fallback;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function cssString(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return raw === "" ? fallback : raw;
+}
+
 export function Spotlight(props: SpotlightProps) {
+  // Props beat theme tokens, which beat the built-in defaults.
+  const color = props.color ?? cssString("--eto-spotlight", "rgba(0, 0, 0, 0.45)");
+  const cornerRadius = props.cornerRadius ?? cssNumber("--eto-spotlight-radius", 6);
+  const padding = props.padding ?? cssNumber("--eto-spotlight-padding", 6);
   const {
-    color = "rgba(0, 0, 0, 1)",
-    opacity = 0.45,
-    cornerRadius = 6,
-    padding = 6,
+    opacity = 1,
     blockClicks = false,
     animate = true,
   } = props;

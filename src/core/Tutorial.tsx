@@ -26,6 +26,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { Step, TutorialApi, TutorialProps } from "../types";
+import { themeToCssVars } from "../config/appearance";
 import {
   computeClose,
   computeGoto,
@@ -103,36 +104,19 @@ export function Tutorial<Meta = never>(props: TutorialProps<Meta>) {
 
   // ── Theme injection ─────────────────────────────────────────────────
   // Sets CSS custom properties on :root so portaled overlays inherit them.
+  // The token → variable mapping lives in config/appearance, so presets,
+  // the editor, and this all agree on one list.
   useEffect(() => {
     if (!theme) return;
     const root = document.documentElement;
-    const mapping: Record<string, string> = {
-      accent: "--eto-accent",
-      surface: "--eto-surface",
-      fg: "--eto-fg",
-      muted: "--eto-muted",
-      mutedSoft: "--eto-muted-soft",
-      hoverBg: "--eto-hover-bg",
-      border: "--eto-border",
-      borderSoft: "--eto-border-soft",
-      arrowColor: "--eto-arrow",
-      arrowOpacity: "--eto-arrow-opacity",
-      cardWidth: "--eto-card-width",
-      cardRadius: "--eto-card-radius",
-    };
-    const applied: string[] = [];
-    for (const [key, cssVar] of Object.entries(mapping)) {
-      const val = (theme as Record<string, string | undefined>)[key];
-      if (val !== undefined) {
-        root.style.setProperty(cssVar, val);
-        applied.push(cssVar);
-      }
+    const vars = themeToCssVars(theme);
+    for (const [cssVar, value] of Object.entries(vars)) {
+      root.style.setProperty(cssVar, value);
     }
     return () => {
-      // Clean up: remove only the vars we set
-      for (const cssVar of applied) {
-        root.style.removeProperty(cssVar);
-      }
+      // Remove only what we set, so a second tour on the page — or the
+      // host's own :root styles — are left alone.
+      for (const cssVar of Object.keys(vars)) root.style.removeProperty(cssVar);
     };
   }, [theme]);
 

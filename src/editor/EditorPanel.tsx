@@ -12,6 +12,7 @@ import { useTutorial } from "../core/Tutorial";
 import { useEditor, type EditorInternalApi } from "./Editor";
 import { OverlayPortal } from "../core/OverlayPortal";
 import { targetPoint } from "../coords";
+import { FeatureEditor } from "./FeatureEditor";
 import type { Step, TextLabel, TextLabelAnimation, TextLabelFrame, TriggerConfig } from "../types";
 
 // ── Icons ───────────────────────────────────────────────────────────────
@@ -464,6 +465,11 @@ function StepEditor({ step, index, total, editor }: {
         <button type="button" className="eto-panel-add-label" onClick={addLabel}>
           <Plus /> Add label
         </button>
+      </Section>
+
+      {/* ── Host features ── */}
+      <Section title="App features" collapsible defaultOpen={false}>
+        <FeatureEditor step={step} update={update} />
       </Section>
 
       {/* ── Timing ── */}

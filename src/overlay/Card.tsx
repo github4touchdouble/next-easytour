@@ -24,6 +24,7 @@ import { useTutorial } from "../core/Tutorial";
 import { OverlayPortal } from "../core/OverlayPortal";
 import { useEnterAnimation } from "../core/animation";
 import { useCardRectSetter } from "./Arrow";
+import { useSlotClass } from "../config/appearance";
 import type { Rect } from "../core/useTargetRect";
 import type { TutorialApi, TransitionConfig } from "../types";
 
@@ -72,6 +73,8 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   const baseId = useId();
   const titleId = `${baseId}-title`;
   const bodyId = `${baseId}-body`;
+
+  const cardClass = useSlotClass("card", "eto-card");
 
   // ── Card rect publication ─────────────────────────────────────────────
   const cardRef = useRef<HTMLDivElement>(null);
@@ -215,7 +218,7 @@ export function Card<Meta = unknown>(props: CardProps<Meta>) {
   const rendered = renderFn ? renderFn(renderArgs) : null;
 
   const className = [
-    "eto-card",
+    cardClass,
     isRenderProp ? "eto-card--custom" : "",
     animClass,
   ].filter(Boolean).join(" ");
@@ -294,27 +297,42 @@ function DefaultCardBody(props: {
 }) {
   const { api, titleId, bodyId } = props;
   const { step, index, total, isFirst, isLast, canAdvance, isWaiting, next, prev, close } = api;
+
+  // Every part of the default card is addressable by a host class, so a
+  // design system can restyle it without rebuilding it via render-prop.
+  const cls = {
+    header: useSlotClass("header", "eto-header"),
+    progress: useSlotClass("progress", "eto-progress"),
+    close: useSlotClass("closeButton", "eto-close"),
+    body: useSlotClass("body", "eto-body"),
+    title: useSlotClass("title", "eto-title"),
+    copy: useSlotClass("copy", "eto-copy"),
+    footer: useSlotClass("footer", "eto-footer"),
+    prev: useSlotClass("prevButton", "eto-btn eto-btn-secondary"),
+    next: useSlotClass("nextButton", "eto-btn eto-btn-primary"),
+  };
+
   if (!step) return null;
 
   return (
     <>
-      <div className="eto-header">
-        <span className="eto-progress">{index + 1} / {total}</span>
-        <button type="button" className="eto-close" onClick={close} aria-label="Close tutorial">×</button>
+      <div className={cls.header}>
+        <span className={cls.progress}>{index + 1} / {total}</span>
+        <button type="button" className={cls.close} onClick={close} aria-label="Close tutorial">×</button>
       </div>
-      <div className="eto-body">
-        {step.title && <h4 id={titleId} className="eto-title">{step.title}</h4>}
+      <div className={cls.body}>
+        {step.title && <h4 id={titleId} className={cls.title}>{step.title}</h4>}
         {step.content ? (
-          <div id={bodyId} className="eto-copy">{step.content}</div>
+          <div id={bodyId} className={cls.copy}>{step.content}</div>
         ) : step.body ? (
-          <p id={bodyId} className="eto-copy">{step.body}</p>
+          <p id={bodyId} className={cls.copy}>{step.body}</p>
         ) : null}
       </div>
-      <div className="eto-footer">
-        <button type="button" className="eto-btn eto-btn-secondary" onClick={prev} disabled={isFirst}>Back</button>
+      <div className={cls.footer}>
+        <button type="button" className={cls.prev} onClick={prev} disabled={isFirst}>Back</button>
         <button
           type="button"
-          className={`eto-btn eto-btn-primary${isWaiting ? " eto-waiting" : ""}`}
+          className={`${cls.next}${isWaiting ? " eto-waiting" : ""}`}
           onClick={next}
           disabled={!canAdvance}
         >

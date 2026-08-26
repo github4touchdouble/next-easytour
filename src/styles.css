@@ -30,8 +30,35 @@
   --eto-arrow:         #404040;
   --eto-arrow-opacity: 0.35;
 
+  /* Typography */
+  --eto-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --eto-font-size:    0.8125rem;
+  --eto-title-size:   0.9375rem;
+  --eto-title-weight: 600;
+  --eto-line-height:  1.5;
+
+  /* Card surface */
   --eto-card-width:     min(480px, calc(100vw - 2rem));
   --eto-card-radius:    0.5rem;
+  --eto-card-padding:   0.875rem;
+  --eto-border-width:   1px;
+  --eto-card-bg:        linear-gradient(135deg, var(--eto-bg-start) 0%, var(--eto-bg-end) 100%);
+  --eto-card-shadow:    0 0 24px -4px var(--eto-shadow), 0 1px 3px rgba(0, 0, 0, 0.08);
+  --eto-card-backdrop:  none;
+
+  /* Buttons */
+  --eto-btn-radius:      0.375rem;
+  --eto-btn-padding:     0.375rem 0.75rem;
+  --eto-btn-font-size:   0.75rem;
+  --eto-btn-primary-bg:  var(--eto-accent);
+  --eto-btn-primary-fg:  #ffffff;
+
+  /* Spotlight */
+  /* Alpha baked into the colour, matching the previous
+     black-at-0.45-opacity rendering exactly. */
+  --eto-spotlight:         rgba(0, 0, 0, 0.45);
+  --eto-spotlight-padding: 6;
+  --eto-spotlight-radius:  6;
   --eto-card-z:         55;
   --eto-arrow-z:        50;
   --eto-circles-z:      45;
@@ -49,6 +76,12 @@
   --eto-handle-shadow: 0 2px 8px color-mix(in srgb, #000 30%, transparent);
 
   --eto-highlight-color: var(--eto-accent);
+
+  /* Editor seam — marks the tour's entry point while authoring. */
+  --eto-seam:        #eab308;
+  --eto-seam-fg:     #1c1917;
+  --eto-seam-z:      59;
+  --eto-seam-radius: 8px;
 }
 
 /* ── Dark mode ── */
@@ -75,14 +108,15 @@
   width: var(--eto-card-width);
   max-width: calc(100vw - 2rem);
   border-radius: var(--eto-card-radius);
-  border: 1px solid var(--eto-border);
+  border: var(--eto-border-width) solid var(--eto-border);
   overflow: hidden;
-  background: linear-gradient(135deg, var(--eto-bg-start) 0%, var(--eto-bg-end) 100%);
-  box-shadow:
-    0 0 24px -4px var(--eto-shadow),
-    0 1px 3px rgba(0, 0, 0, 0.08);
+  background: var(--eto-card-bg);
+  box-shadow: var(--eto-card-shadow);
+  backdrop-filter: var(--eto-card-backdrop);
   color: var(--eto-fg);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--eto-font);
+  font-size: var(--eto-font-size);
+  line-height: var(--eto-line-height);
 }
 
 /* ── Card entrance animations ── */
@@ -90,6 +124,7 @@
 /* Custom card (render-prop mode): the wrapper is just a positioning
    container. All visual styling comes from the host's render-prop. */
 .eto-card--custom {
+  backdrop-filter: none !important;
   border: none !important;
   background: none !important;
   box-shadow: none !important;
@@ -275,7 +310,7 @@
   border: 1px solid var(--eto-border);
   background: var(--eto-surface);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--eto-font);
   animation: eto-card-fade-slide 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -321,7 +356,7 @@
   box-shadow:
     0 4px 16px -2px rgba(0, 0, 0, 0.12),
     0 1px 4px rgba(0, 0, 0, 0.06);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--eto-font);
   user-select: none;
 }
 
@@ -488,7 +523,7 @@
   background: var(--eto-surface);
   border-left: 1px solid var(--eto-border);
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.08);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--eto-font);
   font-size: 12px;
   color: var(--eto-fg);
   transition: width 200ms ease;
@@ -793,7 +828,7 @@
 .eto-label {
   pointer-events: none;
   position: relative;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--eto-font);
   line-height: 1.35;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1072,7 +1107,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--eto-font);
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1167,4 +1202,167 @@
   28% { transform: translate(-1px, 3px) rotate(-1deg); }
   32% { transform: translate(3px, -1px) rotate(1.5deg); }
   36% { transform: translate(0, 0) rotate(0deg); }
+}
+/* ── Editor seam ─────────────────────────────────────────────────────
+   Drawn around <TourTrigger> while the editor is unlocked, so an author
+   can see which button on the page belongs to next-easytour and that
+   they are in editing mode. Portaled and fixed — it never affects
+   layout, and never intercepts a click on the button it surrounds. */
+
+.eto-seam {
+  position: fixed;
+  z-index: var(--eto-seam-z);
+  pointer-events: none;
+  border: 2px solid var(--eto-seam);
+  border-radius: var(--eto-seam-radius);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--eto-seam) 22%, transparent);
+  animation: eto-seam-in 160ms ease-out;
+}
+
+.eto-seam-badge {
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  margin-bottom: 3px;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  background: var(--eto-seam);
+  color: var(--eto-seam-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+@keyframes eto-seam-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* The seam is a mode indicator, not decoration — hold it still for
+   users who have asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .eto-seam { animation: none; }
+}
+
+.dark .eto-seam-badge { --eto-seam-fg: #1c1917; }
+
+/* ── Theme token application ─────────────────────────────────────────
+   Rules that let the typography, spacing and button tokens actually
+   reach the built-in card. Declared last so they win over the original
+   fixed values above without those needing to be rewritten. */
+
+.eto-title {
+  font-size: var(--eto-title-size);
+  font-weight: var(--eto-title-weight);
+}
+
+.eto-copy {
+  font-size: var(--eto-font-size);
+  line-height: var(--eto-line-height);
+}
+
+.eto-header,
+.eto-body,
+.eto-footer {
+  padding: var(--eto-card-padding);
+}
+
+.eto-header { padding-bottom: 0; }
+.eto-footer { padding-top: 0; }
+
+.eto-btn {
+  border-radius: var(--eto-btn-radius);
+  padding: var(--eto-btn-padding);
+  font-size: var(--eto-btn-font-size);
+  font-family: var(--eto-font);
+}
+
+.eto-btn-primary {
+  background: var(--eto-btn-primary-bg);
+  color: var(--eto-btn-primary-fg);
+}
+
+/* ── Editor: host feature wiring ─────────────────────────────────────
+   The panel section where a step is bound to the application's own
+   behaviour. Each registered feature declares its parameters, so this
+   renders a real form rather than a JSON textarea. */
+
+.eto-panel-feature {
+  border: 1px solid var(--eto-border-soft);
+  border-radius: 6px;
+  padding: 6px 7px;
+  margin-bottom: 6px;
+  background: color-mix(in srgb, var(--eto-accent) 3%, transparent);
+}
+
+.eto-panel-feature-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.eto-panel-feature-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--eto-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eto-panel-feature-remove {
+  all: unset;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0 4px;
+  line-height: 1;
+  color: var(--eto-muted);
+  font-size: 14px;
+}
+.eto-panel-feature-remove:hover { color: var(--eto-fg); }
+
+.eto-panel-feature-param {
+  display: block;
+  margin-top: 5px;
+}
+
+.eto-panel-feature-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 10px;
+  color: var(--eto-muted);
+}
+.eto-panel-feature-label em {
+  color: var(--eto-accent);
+  font-style: normal;
+}
+
+.eto-panel-hint {
+  margin: 3px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--eto-muted);
+}
+
+.eto-panel-warn {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #b45309;
+}
+.eto-panel-warn code { font-family: ui-monospace, monospace; }
+
+.eto-panel-empty {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--eto-muted);
+}
+.eto-panel-empty code {
+  font-family: ui-monospace, monospace;
+  color: var(--eto-fg);
 }

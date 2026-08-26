@@ -86,12 +86,47 @@ function unsavedCountOf(o: Overrides): number {
 
 // ── canEdit resolution ──────────────────────────────────────────────────
 
+/**
+ * A hook that calls no hooks. Stands in for `canEdit.useCanEdit` when
+ * `canEdit` is not the hook shape, so the call below is unconditional.
+ */
+const useNoCanEdit = () => false;
+
+/**
+ * Resolve the legacy 0.3 `CanEdit` union.
+ *
+ * @deprecated Prefer `editor.permission` on a `defineTutorial` config,
+ * which takes a plain boolean and cannot violate the rules of hooks.
+ *
+ * The 0.3 implementation called `canEdit.useCanEdit()` inside a ternary,
+ * so a host that swapped `canEdit` between the hook shape and any other
+ * shape changed the hook count between renders and crashed React. The
+ * call is unconditional now. It is still only as safe as the hook the
+ * host passes — which is why the shape is deprecated.
+ */
 function useResolveCanEdit(canEdit: CanEdit | undefined): boolean {
-  const hookShape =
-    typeof canEdit === "object" && canEdit !== null && "useCanEdit" in canEdit
-      ? canEdit
-      : null;
-  const fromHook = hookShape ? hookShape.useCanEdit() : false;
+  const isHookShape =
+    typeof canEdit === "object" && canEdit !== null && "useCanEdit" in canEdit;
+  const hook = isHookShape ? canEdit.useCanEdit : useNoCanEdit;
+  const fromHook = hook();
+
+  // Warn once if the shape changes across renders: the hook count is
+  // stable now, but the *identity* of the host's hook is not, and React
+  // will still complain if it uses a different number of hooks itself.
+  const wasHookShape = useRef(isHookShape);
+  if (
+    wasHookShape.current !== isHookShape &&
+    typeof process !== "undefined" &&
+    process.env?.NODE_ENV !== "production"
+  ) {
+    wasHookShape.current = isHookShape;
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[next-easytour] `canEdit` changed between the { useCanEdit } hook shape " +
+        "and another shape. Pass a plain boolean instead — see `editor.permission`.",
+    );
+  }
+
   if (canEdit === undefined || canEdit === "auto") {
     return typeof process !== "undefined" && process.env?.NODE_ENV !== "production";
   }
