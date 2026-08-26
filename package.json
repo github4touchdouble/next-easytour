@@ -1,6 +1,6 @@
 {
   "name": "next-easytour",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Interactive tutorial overlays for React/Next.js. One config object, selector targeting, step actions, waitFor conditions, a drag-to-author editor with a real permission model, and pluggable step stores.",
   "keywords": [
     "tutorial",

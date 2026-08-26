@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.1] — 2026-08-27
+
+### Fixed
+
+- **The JSON schema rejected arrow curvatures the editor itself writes.**
+  `ArrowStyle.bend` declared `minimum: 5`, but the straight-arrow preset
+  saves `bend: 0`, so a validating editor flagged real tour files as
+  invalid. The renderer clamps the resulting offset to a 20px floor, so 0
+  is a legitimate value that draws an almost-straight arrow — the 5 was
+  documenting the range of the editor's presets, not the range of valid
+  input. Negative values are still rejected.
+
+  Found by validating a production tour file against the published
+  schema, which is now part of how these files are checked.
+
 ## [0.4.0] — 2026-08-26
 
 Configuration rework. A tour's settings were spread across four
