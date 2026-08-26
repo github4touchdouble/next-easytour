@@ -210,9 +210,10 @@
       "properties": {
         "bend": {
           "type": "number",
-          "minimum": 5,
+          "minimum": 0,
           "maximum": 80,
-          "default": 30
+          "default": 30,
+          "description": "Curvature as a percentage of the straight-line distance. The renderer clamps the resulting offset to a 20px floor, so 0 draws an almost-straight arrow rather than an invalid one \u2014 which is why 0 is allowed here even though the editor's presets start higher."
         },
         "flip": {
           "type": "boolean",
